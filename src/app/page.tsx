@@ -22,7 +22,8 @@ export default function Home() {
   // Add Pacifico font for cursive "hello" text
   useEffect(() => {
     const link = document.createElement("link");
-    link.href = "https://fonts.googleapis.com/css2?family=Pacifico&display=swap";
+    link.href =
+      "https://fonts.googleapis.com/css2?family=Pacifico&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
 
@@ -32,13 +33,13 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="h-screen w-screen overflow-hidden bg-black">
+    <main className="min-h-screen w-screen overflow-y-auto md:h-screen md:overflow-hidden bg-black">
       {/* Fade overlay for transitions */}
       <div
         className="fixed inset-0 bg-black pointer-events-none z-[100]"
         style={{
           opacity: transitioning ? 1 : 0,
-          transition: "opacity 500ms ease-in-out"
+          transition: "opacity 500ms ease-in-out",
         }}
       />
 
