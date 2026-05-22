@@ -36,7 +36,7 @@ export const projects: Project[] = [
     id: "recommendation-engine",
     title: "Deep Learning Recommendation Engine",
     description:
-      "Production recommendation system trained on 23,000+ e-commerce reviews using PyTorch, with three models — Popularity Baseline, Matrix Factorization, and Neural CF — achieving 37% hit rate and 25% recall at top-10. Handled 98.6% data sparsity via negative sampling (4:1) and cold-start filtering. Deployed with FastAPI, Redis caching, Docker, and Prometheus/Grafana monitoring.",
+      "Production recommendation system trained on 23,000+ e-commerce reviews using PyTorch, achieving 21.5% precision for top-10 suggestions and a 36% improvement over matrix factorization via Neural Collaborative Filtering. Addressed class imbalance and cold-start problems using negative sampling, dropout, and feature engineering. Deployed with FastAPI, Redis caching, and Prometheus/Grafana monitoring.",
     technologies: ["PyTorch", "FastAPI", "Redis", "Docker", "Neural Collaborative Filtering", "Prometheus", "Grafana"],
     githubUrl: "https://github.com/archiips",
   },
