@@ -4,41 +4,27 @@ import { useState, useRef } from "react";
 import { Folder } from "lucide-react";
 import { projects as libProjects } from "@/lib/projects";
 
-interface Project {
-  id: string;
-  image: string;
-  title: string;
-}
-
 interface AnimatedFolderProps {
   onOpenProjects: () => void;
 }
 
-// Map library projects to include images for hover display
-const projects: Project[] = libProjects.map((p) => ({
+const CARD_COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b"];
+
+// Show max 4 projects on hover
+const hoverProjects = libProjects.slice(0, 4).map((p, i) => ({
   id: p.id,
-  image:
-    p.image ||
-    "https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&h=600&fit=crop",
+  color: CARD_COLORS[i],
   title: p.title,
 }));
 
-export default function AnimatedFolder({
-  onOpenProjects,
-}: AnimatedFolderProps) {
+export default function AnimatedFolder({ onOpenProjects }: AnimatedFolderProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleClick = () => {
-    // Open the projects panel overlay
     setIsClicked(false);
     onOpenProjects();
-  };
-
-  const handleContainerClick = () => {
-    // For touch devices, toggle the fan-out effect
-    setIsClicked(!isClicked);
   };
 
   const handleMouseLeave = () => {
@@ -46,11 +32,14 @@ export default function AnimatedFolder({
     setIsClicked(false);
   };
 
+  const totalCards = hoverProjects.length;
+  const middleIndex = (totalCards - 1) / 2;
+
   return (
     <div
       ref={containerRef}
       className="relative flex flex-col items-center gap-2 cursor-pointer outline-none"
-      onClick={handleContainerClick}
+      onClick={() => setIsClicked(!isClicked)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={handleMouseLeave}
       style={{
@@ -58,12 +47,11 @@ export default function AnimatedFolder({
         transition: "transform 150ms cubic-bezier(0.4, 0, 0.2, 1)",
       }}
     >
-      {/* Project cards that fan out */}
       <div className="relative w-16 h-16 md:w-20 md:h-20">
-        {projects.map((project, index) => {
-          const totalCards = projects.length;
-          const middleIndex = (totalCards - 1) / 2;
+        {/* Fanned project cards */}
+        {hoverProjects.map((project, index) => {
           const offsetFromMiddle = index - middleIndex;
+          const active = isHovered || isClicked;
 
           return (
             <div
@@ -72,47 +60,39 @@ export default function AnimatedFolder({
                 e.stopPropagation();
                 handleClick();
               }}
-              className="absolute inset-0 rounded-lg overflow-hidden cursor-pointer"
+              className="absolute inset-0 rounded-xl overflow-hidden cursor-pointer"
               style={{
-                transform:
-                  isHovered || isClicked
-                    ? `translateY(${-80 - index * 15}px) translateX(${offsetFromMiddle * 60}px) rotate(${offsetFromMiddle * 8}deg) scale(0.9)`
-                    : `translateY(${-index * 2}px) scale(${1 - index * 0.02})`,
-                opacity: isHovered || isClicked ? 1 : index === 0 ? 0 : 0,
+                background: project.color,
+                transform: active
+                  ? `translateY(${-80 - index * 15}px) translateX(${offsetFromMiddle * 60}px) rotate(${offsetFromMiddle * 8}deg) scale(0.9)`
+                  : `translateY(${-index * 2}px) scale(${1 - index * 0.02})`,
+                opacity: active ? 1 : 0,
                 transition: `all 300ms cubic-bezier(0.34, 1.56, 0.64, 1) ${index * 50}ms`,
                 zIndex: totalCards - index,
-                boxShadow:
-                  isHovered || isClicked
-                    ? "0 8px 25px rgba(0, 0, 0, 0.4)"
-                    : "0 2px 8px rgba(0, 0, 0, 0.2)",
+                boxShadow: active
+                  ? "0 8px 25px rgba(0, 0, 0, 0.35)"
+                  : "0 2px 8px rgba(0, 0, 0, 0.2)",
               }}
             >
-              <img
-                src={project.image}
-                alt={project.title}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <span className="absolute bottom-1 left-1 right-1 text-white text-xs font-medium truncate px-1">
-                {project.title.split(" ").slice(0, 2).join(" ")}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+              <span className="absolute bottom-1 left-1 right-1 text-white text-[10px] font-semibold truncate px-1">
+                {project.title.split(" ").slice(0, 3).join(" ")}
               </span>
             </div>
           );
         })}
 
-        {/* Folder icon */}
+        {/* Folder icon base */}
         <div
           onClick={handleClick}
           className="absolute inset-0 rounded-2xl flex items-center justify-center text-white"
           style={{
-            background:
-              "linear-gradient(135deg, #f97316 0%, #ea580c 50%, #c2410c 100%)",
+            background: "linear-gradient(135deg, #f97316 0%, #ea580c 50%, #c2410c 100%)",
             boxShadow:
               isHovered || isClicked
                 ? "0 12px 24px rgba(249, 115, 22, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3)"
                 : "0 4px 12px rgba(0, 0, 0, 0.3)",
-            transform:
-              isHovered || isClicked ? "rotateX(-15deg)" : "rotateX(0)",
+            transform: isHovered || isClicked ? "rotateX(-15deg)" : "rotateX(0)",
             transformOrigin: "bottom center",
             transition: "all 300ms cubic-bezier(0.34, 1.56, 0.64, 1)",
           }}
@@ -127,7 +107,6 @@ export default function AnimatedFolder({
         </div>
       </div>
 
-      {/* Label */}
       <span
         className="text-white text-sm font-medium"
         style={{

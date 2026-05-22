@@ -5,43 +5,74 @@ export interface Project {
   technologies: string[];
   githubUrl?: string;
   liveUrl?: string;
-  image?: string;
 }
 
 export const projects: Project[] = [
   {
+    id: "ai-safety-red-teaming",
+    title: "AI Safety Red-Teaming Tool",
+    description:
+      "Built a high-performance C++ policy engine that detects and scores LLM security vulnerabilities across 10 risk categories at 8.3µs median latency — 12× faster than Python. Used Azure AI Foundry (Phi-4) to generate adversarial attacks scored by Azure Content Safety, with a severity dashboard deployed on Azure Container Apps and GitHub Actions CI/CD catching regressions on every PR.",
+    technologies: ["C++", "Python", "Azure AI Foundry", "Azure Content Safety", "FastAPI", "React", "GitHub Actions"],
+    githubUrl: "https://github.com/archiips",
+  },
+  {
+    id: "ml-license-compliance",
+    title: "ML License Compliance Agent",
+    description:
+      "Automated ML license auditing across Python packages, AI models, and datasets in a single GitLab CI/CD pass using CycloneDX SBOMs. Published an Anthropic Claude-powered agent to the GitLab catalog that explains license violations in plain English and recommends fixes.",
+    technologies: ["Python", "GitLab CI/CD", "Hugging Face", "CycloneDX", "Claude API"],
+    githubUrl: "https://github.com/archiips",
+  },
+  {
     id: "document-querying",
     title: "Intelligent Document Querying System",
-    description: "Built a production-ready Retrieval-Augmented Generation (RAG) system for querying and reasoning over enterprise documents. Integrated Amazon Bedrock with Claude 3 Sonnet to retrieve relevant context and generate accurate answers. Designed a scalable vector database using Aurora Serverless and pgvector, achieving sub-second query latency. Automated cloud infrastructure using Terraform to manage VPCs, IAM roles, and S3 data sources, significantly reducing setup time for new knowledge bases. Tuned model parameters to balance factual accuracy and response quality for document-based Q&A.",
-    technologies: ["Amazon Bedrock", "RAG", "Aurora Serverless (pgvector)", "Terraform", "AWS S3"],
+    description:
+      "Production-ready RAG system built with Amazon Bedrock and Claude 3 Sonnet for querying enterprise documents. Designed a scalable vector store on Aurora Serverless with pgvector for sub-second retrieval. Automated cloud infrastructure with Terraform (VPCs, IAM, S3) and tuned Temperature and Top P parameters to balance factual accuracy with response quality.",
+    technologies: ["Amazon Bedrock", "Claude 3 Sonnet", "RAG", "Aurora Serverless", "pgvector", "Terraform", "AWS S3"],
     githubUrl: "https://github.com/archiips",
-    image: "https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&h=600&fit=crop"
   },
   {
     id: "recommendation-engine",
     title: "Deep Learning Recommendation Engine",
-    description: "Developed a deep learning-based recommendation system using Neural Collaborative Filtering in PyTorch on a dataset of 23,000+ user reviews. Improved top-10 recommendation precision by 21.5% and achieved a 36% performance gain over traditional matrix factorization methods. Addressed cold-start and class imbalance challenges through negative sampling, dropout, and feature engineering. Deployed the system with FastAPI and Redis for low-latency inference, with automated retraining and system monitoring using Prometheus and Grafana.",
-    technologies: ["PyTorch", "FastAPI", "Redis", "Neural Collaborative Filtering", "Prometheus", "Grafana"],
+    description:
+      "Production recommendation system trained on 23,000+ e-commerce reviews using PyTorch, with three models — Popularity Baseline, Matrix Factorization, and Neural CF — achieving 37% hit rate and 25% recall at top-10. Handled 98.6% data sparsity via negative sampling (4:1) and cold-start filtering. Deployed with FastAPI, Redis caching, Docker, and Prometheus/Grafana monitoring.",
+    technologies: ["PyTorch", "FastAPI", "Redis", "Docker", "Neural Collaborative Filtering", "Prometheus", "Grafana"],
     githubUrl: "https://github.com/archiips",
-    image: "https://images.unsplash.com/photo-1518186285589-2f7649de83e0?w=800&h=600&fit=crop"
   },
   {
     id: "neuroverse",
-    title: "Neuroverse – Neuroscience Data Visualization Platform",
-    description: "Built a full-stack web application to explore and visualize demographic data from 23 OpenNeuro datasets covering over 2,700 participants. Implemented a RESTful backend using FastAPI to fetch, parse, and serve large neuroscience datasets, deployed with PostgreSQL for scalable storage. Developed a React-based frontend with interactive 3D visualizations using Plotly.js to display age, sex, and diagnosis distributions. Deployed the backend on Render and the frontend on Vercel for scalable access.",
-    technologies: ["React", "FastAPI", "PostgreSQL", "Plotly.js", "Vercel"],
+    title: "Neuroscience Data Visualization Platform",
+    description:
+      "Full-stack web app visualizing demographics from 23 OpenNeuro datasets (2,700+ participants). Built a FastAPI backend serving parsed neuroscience data from PostgreSQL on Render, and a React frontend with interactive 3D Plotly.js charts for age, sex, and diagnosis distributions.",
+    technologies: ["React", "FastAPI", "PostgreSQL", "Plotly.js", "Vercel", "Render"],
     githubUrl: "https://github.com/archiips",
     liveUrl: "https://neuroverse-dusky.vercel.app",
-    image: "https://images.unsplash.com/photo-1559757175-0eb30cd8c063?w=800&h=600&fit=crop"
+  },
+  {
+    id: "dawgs-marketplace",
+    title: "Dawgs Marketplace",
+    description:
+      "Campus-exclusive buy/sell marketplace restricted to verified @uw.edu accounts via Google OAuth, serving UW Bothell students. Led database architecture with Flask, SQLAlchemy, and Supabase/PostgreSQL, supporting full listing lifecycle (create, edit, delete, sold). Integrated Cloudinary for image delivery and deployed on Vercel with a fully responsive UI.",
+    technologies: ["React", "Flask", "PostgreSQL", "Supabase", "SQLAlchemy", "Cloudinary", "Google OAuth"],
+    githubUrl: "https://github.com/archiips",
   },
   {
     id: "uw-navigation",
     title: "UW Seattle Navigation System",
-    description: "Designed and implemented a navigation system that computes shortest paths on real-world road networks. Built a custom graph with over 19,000 nodes and applied Dijkstra's Algorithm to achieve 99% accuracy compared to standard baselines. Optimized performance by using an in-memory graph engine and Java priority queues, reducing route calculation time to ~40ms. Added K-Nearest Neighbor (KNN) snapping to map user clicks to valid road nodes for improved usability.",
-    technologies: ["Java", "Spring Boot", "Dijkstra's Algorithm", "Graph Data Structures"],
+    description:
+      "Real-time campus navigation app in Java and Spring Boot computing shortest walking paths across 19,000+ nodes using Dijkstra's algorithm. Optimized with in-memory graph engine and Java priority queues for ~40ms route calculation. React frontend renders computed paths interactively on a campus map via REST API.",
+    technologies: ["Java", "Spring Boot", "React", "Dijkstra's Algorithm", "Graph Data Structures"],
     githubUrl: "https://github.com/archiips",
-    image: "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=800&h=600&fit=crop"
-  }
+  },
+  {
+    id: "products-sense",
+    title: "ProductsSense",
+    description:
+      "Product recommendation web app that fetches live listings from the Amazon Rainforest API and passes them to MistralAI's Mixtral-8x7B-Instruct LLM to generate personalized recommendations. Python backend handles API orchestration and prompt construction; React frontend displays recommendations with product details and pricing.",
+    technologies: ["Python", "MistralAI", "Amazon Rainforest API", "React"],
+    githubUrl: "https://github.com/archiips",
+  },
 ];
 
 export const aboutMe = {
@@ -53,28 +84,40 @@ export const aboutMe = {
   email: "architjaiswal18@gmail.com",
   phone: "(425) 543-2143",
   education: [
-    "University of Washington",
-    "BS in Computer Science & Software Engineering (GPA: 3.88)",
-    "AWS AI Engineer Nanodegree"
+    "University of Washington, Bothell — Dean's List",
+    "BS in Computer Science & Software Engineering (GPA: 3.88/4.0)",
+    "Expected June 2028 | Coursework: DSA (C++), Databases, Agile SE",
+    "AWS AI Engineer Nanodegree — Udacity × AWS (Sept–Nov 2025)",
   ],
   experience: [
     {
+      title: "Machine Learning Researcher",
+      company: "DAIS Research Group, University of Washington",
+      period: "April 2026 – Present",
+      description:
+        "Researching ML microservice and backend architecture of CareBot, an LLM-powered mental health chatbot in the NSF-supported iCare platform, supporting Explainable AI (XAI) development with RASA, Python, and LLMs.",
+    },
+    {
       title: "User Insight R&D Intern",
-      company: "Apexiel",
-      description: "Developed AI-powered user research tools and analytics platforms."
+      company: "Apexiel, Inc.",
+      period: "Oct 2025 – Mar 2026",
+      description:
+        "Fine-tuned Phi-3 via QLoRA and Unsloth as an interactive story interviewer. Accelerated story creation by 40% with a photo-first Flask/React/PostgreSQL platform and cut content complexity by 60% with a JSONB content system.",
     },
     {
       title: "Software Engineer Intern",
       company: "Genmark AI",
-      description: "Built machine learning pipelines and full-stack applications."
-    }
+      period: "June 2025 – Aug 2025",
+      description:
+        "Expanded platform feature coverage by 50% (6→9 workflows) via TypeScript UI redesign and Python/GCP backend. Cut manual marketing work by 40% with n8n automation pipelines for AI-driven content scheduling.",
+    },
   ],
   skills: {
-    languages: ["Python", "JavaScript/TypeScript", "Java", "C++"],
-    frontendBackend: ["React", "FastAPI", "Flask", "Spring Boot"],
-    aiData: ["PyTorch", "RAG", "Embeddings", "Pandas"],
-    cloudDevops: ["AWS (S3, Lambda)", "Docker", "PostgreSQL", "Git"]
+    languages: ["Python", "Java", "C++", "JavaScript", "TypeScript", "HTML/CSS", "SQL", "Swift"],
+    frontendBackend: ["React", "Flask", "FastAPI", "Spring Boot", "PyTorch", "NumPy", "Pandas", "SwiftUI"],
+    aiData: ["Azure AI Foundry", "Amazon Bedrock", "SageMaker", "RAG", "Embeddings", "QLoRA", "Hugging Face", "Comprehend"],
+    cloudDevops: ["PostgreSQL", "Amazon S3", "Aurora", "Lambda", "GCP", "Terraform", "Docker", "Git", "GitLab", "Redis"],
   },
   github: "https://github.com/archiips",
-  linkedin: "https://www.linkedin.com/in/archit-jaiswal4/"
+  linkedin: "https://www.linkedin.com/in/archit-jaiswal4/",
 };
