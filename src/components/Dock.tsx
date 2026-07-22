@@ -5,6 +5,7 @@ import { Github, Linkedin } from "lucide-react";
 import AnimatedFolder from "./ui/3d-folder";
 import CartoonButton from "./ui/cartoon-button";
 import GradientButton from "./ui/gradient-button";
+import { assetPath } from "@/lib/utils";
 
 interface DockProps {
   onOpenProjects: () => void;
@@ -100,7 +101,7 @@ export default function Dock({ onOpenProjects, onOpenAbout }: DockProps) {
       {/* Resume: Gradient Button */}
       <GradientButton
         label="Resume"
-        onClick={() => window.open("/Archit Jaiswal.pdf", "_blank")}
+        onClick={() => window.open(assetPath("/Archit Jaiswal.pdf"), "_blank")}
       />
 
       {/* Projects: 3D Animated Folder */}

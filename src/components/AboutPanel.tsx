@@ -13,6 +13,7 @@ import {
   Code,
 } from "lucide-react";
 import { aboutMe } from "@/lib/projects";
+import { assetPath } from "@/lib/utils";
 
 interface AboutPanelProps {
   isOpen: boolean;
@@ -80,7 +81,7 @@ export default function AboutPanel({ isOpen, onClose }: AboutPanelProps) {
               style={{ boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)" }}
             >
               <img
-                src="/profile.jpg"
+                src={assetPath("/profile.jpg")}
                 alt="Archit Jaiswal"
                 className="w-full h-full object-cover"
               />

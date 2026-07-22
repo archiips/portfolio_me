@@ -6,6 +6,7 @@ import Dock from "./Dock";
 import ProjectsPanel from "./ProjectsPanel";
 import AboutPanel from "./AboutPanel";
 import ProfileSection from "./ProfileSection";
+import { assetPath } from "@/lib/utils";
 
 export default function Desktop() {
   const [showProjects, setShowProjects] = useState(false);
@@ -15,7 +16,7 @@ export default function Desktop() {
     <div
       className="fixed inset-0 z-20"
       style={{
-        backgroundImage: "url(/wallpaper.jpg)",
+        backgroundImage: `url(${assetPath("/wallpaper.jpg")})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",

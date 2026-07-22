@@ -1,5 +1,7 @@
 "use client";
 
+import { assetPath } from "@/lib/utils";
+
 export default function ProfileSection() {
   return (
     <div
@@ -21,7 +23,7 @@ export default function ProfileSection() {
         }}
       >
         <img
-          src="/profile.jpg"
+          src={assetPath("/profile.jpg")}
           alt="Archit Jaiswal"
           className="w-full h-full object-cover"
         />
