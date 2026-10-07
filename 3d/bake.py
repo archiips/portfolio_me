@@ -517,6 +517,41 @@ def main():
     bpy.ops.wm.save_as_mainfile(filepath=BLEND_OUT, compress=True)
     log("saved", BLEND_OUT)
 
+    export_web()
+    log(f"done in {time.time()-t0:.0f}s total")
+
+
+# Per-object triangle budget for the web file. The bake joins whole assets,
+# and some (the wall shelf's plants, the prop atlases) came to 250k-900k
+# triangles - 2.6M in all, drawn twice a frame because of the mirror floor.
+# Collapse decimation keeps the baked UVs, so this runs after baking.
+WEB_TRI_CAP = 45000
+WEB_TRI_CAPS = {"nav_projects": 30000, "nav_contact": 25000, "a_Keyboard": 25000,
+                "Akita": 15000}
+
+
+def slim_for_web():
+    total_before = total_after = 0
+    for o in bpy.data.objects:
+        if o.type != 'MESH' or o.hide_render or o.name.endswith("hitbox"):
+            continue
+        tris = sum(len(p.vertices) - 2 for p in o.data.polygons)
+        total_before += tris
+        cap = WEB_TRI_CAPS.get(o.name, WEB_TRI_CAP)
+        if tris > cap:
+            m = o.modifiers.new("WebDecimate", 'DECIMATE')
+            m.ratio = cap / tris
+            m.use_collapse_triangulate = True
+            total_after += cap
+        else:
+            total_after += tris
+    log(f"web triangles: {total_before:,} -> ~{total_after:,}")
+
+
+def export_web():
+    """Export public/models/room-baked.glb from the baked scene. Also run on
+    its own (3d/reexport.py) to re-slim without the hour-long bake."""
+    slim_for_web()
     # Hitboxes are render-hidden so they never bake, but the browser needs them
     # for raycasting. Only they are un-hidden: un-hiding EVERY hidden object
     # used to ship leftover props (shelf text, stray cylinders) in the GLB.
@@ -530,8 +565,7 @@ def main():
         export_image_format='JPEG', export_jpeg_quality=80,
         export_draco_mesh_compression_enable=True,
         export_draco_mesh_compression_level=6)
-    log(f"exported {GLB_OUT} "
-        f"({os.path.getsize(GLB_OUT)/1e6:.1f} MB) in {time.time()-t0:.0f}s total")
+    log(f"exported {GLB_OUT} ({os.path.getsize(GLB_OUT)/1e6:.1f} MB)")
 
 
 if __name__ == "__main__":

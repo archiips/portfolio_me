@@ -20,14 +20,19 @@ export default function BootSequence({ onComplete, loaded = 100 }: BootSequenceP
     return () => clearTimeout(t);
   }, []);
 
+  // Driven by requestAnimationFrame so the bar moves every frame instead of
+  // stepping every 50ms.
   useEffect(() => {
-    const duration = 2500; // minimum boot time
-    const interval = 50;
-    const step = 100 / (duration / interval);
-    const timer = setInterval(() => {
-      setElapsed((prev) => Math.min(100, prev + step));
-    }, interval);
-    return () => clearInterval(timer);
+    const duration = 1600; // minimum boot time
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const p = Math.min(100, ((now - start) / duration) * 100);
+      setElapsed(p);
+      if (p < 100) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   useEffect(() => {
@@ -51,8 +56,8 @@ export default function BootSequence({ onComplete, loaded = 100 }: BootSequenceP
       {/* Progress Bar */}
       <div className="w-48 h-1 md:w-64 bg-gray-800 rounded-full overflow-hidden">
         <div
-          className="h-full bg-white rounded-full transition-all duration-100 ease-out"
-          style={{ width: `${progress}%` }}
+          className="h-full bg-white rounded-full"
+          style={{ width: `${progress}%`, transition: "width 250ms ease-out" }}
         />
       </div>
     </div>

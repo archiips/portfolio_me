@@ -5,7 +5,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { MeshReflectorMaterial, OrbitControls } from "@react-three/drei";
+import { MeshReflectorMaterial, OrbitControls, Preload } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import RoomModel from "./RoomModel";
 import NavText from "./NavText";
@@ -160,6 +160,9 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
           />
           <MirrorFloor />
           <CameraIntro controls={controls} mobile={mobile} started={started} />
+          {/* Compile every shader and upload every texture as soon as the
+              model arrives (during the boot screen), not on first view. */}
+          <Preload all />
         </Suspense>
 
         <OrbitControls
