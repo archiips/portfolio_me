@@ -67,13 +67,55 @@ World background `#201910` at strength 0.22, view exposure -0.30.
 Emissive meshes: `glow`, `lamp_glow`, `shelf_strip`, and the monitor's
 `Screen` mesh (textured with `public/wallpaper.jpg`).
 
-### Known limitation: area lights do not survive glTF
+### Area lights do not survive glTF — hence the bake
 
 glTF has no area-light type. Seven of the ten lights above are area lights and
-the exporter drops them, so `room.glb` currently carries only `Sun_Key`,
-`DeskLamp` and `GlowLight`. **The GLB will not look like the preview render
-until the lighting is baked to texture.** This is why the reference bakes and
-then runs a single `AmbientLight` at runtime.
+the exporter drops them, so the unbaked `room.glb` carries only `Sun_Key`,
+`DeskLamp` and `GlowLight` and looks nothing like the render. `bake.py` solves
+this by moving the lighting into the textures.
+
+## Baking
+
+```bash
+blender --background ~/main/Blender/room.blend --python 3d/bake.py
+```
+
+Takes about 3–5 minutes on an M3 (Cycles on Metal, 48 samples, COMBINED).
+Outputs `~/main/Blender/room_baked.blend` and `public/models/room-baked.glb`.
+
+| | `room.glb` | `room-baked.glb` |
+|---|---|---|
+| Size | 11.7 MB | 9.7 MB |
+| Lights | 3 (of 10) | **0** |
+| Images | ~140 | 10 |
+| Materials | many | 16, ten with `emissiveTexture` |
+| Looks like the render | no | **yes** |
+
+How it works:
+
+1. Decimate to the same 8k-triangle budget the web export uses, so the bake
+   isn't paying for geometry that never ships.
+2. Join static meshes into 2048px atlas batches. The five nav targets stay
+   separate at 1024px (`nav_projects`, `nav_aboutme`, …) so the web layer can
+   still outline them individually. Hitboxes are untouched.
+3. Smart UV Project into a dedicated `Bake` UV layer per target.
+4. Bake COMBINED (direct + indirect), then give each target one flat material:
+   black base colour, baked image as emission.
+5. Delete all lights and zero the world.
+
+Animated objects — the panda and the steam — are excluded from the bake and
+keep their own materials, so the web layer still wants a dim ambient light
+for them.
+
+### Gotchas hit while writing this
+
+- **Generated images are not saved with the .blend unless packed.** The first
+  run produced a correct GLB (exported in the same session) but a `.blend`
+  that reopened completely black. `img.pack()` after each bake fixes it.
+- Appended assets leave objects in collections that aren't linked to the view
+  layer; `select_set()` raises on those, so selection is filtered.
+- `aboutme` is not an object name — it lives on `Poster_Messi` — so `NAV` is a
+  section→object mapping.
 
 In the browser, finish the look the way the reference does: a `#82ADED`
 overlay at 45% opacity in `mix-blend-mode: overlay`, plus bloom and gold

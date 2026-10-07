@@ -176,6 +176,11 @@ def bake_object(obj, size, tag):
     log(f"  baked {tag} ({size}px, {len(obj.data.polygons)} faces) "
         f"in {time.time()-t0:.0f}s")
 
+    # A generated image lives only in memory. Saving the .blend without packing
+    # it silently discards every pixel, and the file reopens fully black - the
+    # GLB still looked right because it was exported in the same session.
+    img.pack()
+
     for m, n in nodes_added:
         m.node_tree.nodes.remove(n)
 
