@@ -282,11 +282,18 @@ def settle_props():
                  "Lego", "Pencil", "Glasses", "Succulent", "Slippers"):
         if name in O:
             settle(O[name], lift=0.25)
-    # these two do not rest facing +Y; measured headings from the angle views
-    for name, fwd in (("LeBron", 230.0), ("PotatoMan", 141.0)):
-        o = O.get(name)
-        if o:
-            face_camera(o, model_forward_deg=fwd)
+    # These two do not rest facing +Y; headings measured from the angle views.
+    # LeBron faces straight out of the cabinet (-Y); PotatoMan angles at the camera.
+    lb = O.get("LeBron")
+    if lb:
+        lb.rotation_mode = 'XYZ'
+        lb.rotation_euler.z = math.radians(-90.0 - 230.0)
+        bpy.context.view_layer.update()
+        place(lb, x=-0.68, y=1.84, z=1.95)
+    pm = O.get("PotatoMan")
+    if pm:
+        face_camera(pm, model_forward_deg=141.0)
+        place(pm, x=-0.36, y=1.84, z=1.95)
 
 
 def build_extras():
