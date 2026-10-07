@@ -62,7 +62,7 @@ function Sleeve({ p, i, big = false }: { p: Project; i: number; big?: boolean })
       </p>
       {/* title on a paper sticker so it reads over any cover art */}
       <p
-        className={`absolute left-[6%] top-[15%] max-w-[88%] rounded-sm bg-[#F7F1E4] px-1.5 py-0.5 font-semibold leading-tight text-[#2b211b] shadow-sm ${big ? "text-lg" : "text-[11px]"}`}
+        className={`absolute left-[6%] top-[15%] rounded-sm bg-[#F7F1E4] px-1.5 py-0.5 font-semibold leading-tight text-[#2b211b] shadow-sm ${big ? "max-w-[88%] text-lg" : "max-w-[58%] text-[11px]"}`}
       >
         {shortTitle(p.title)}
       </p>

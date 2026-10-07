@@ -18,7 +18,7 @@ const LINES = [
   "fluffing the pillows…",
   "racing the hot wheels…",
 ];
-const MIN_MS = 1400; // even when cached, long enough to read
+const MIN_MS = 2800; // even when cached, the loader plays for a few seconds
 
 function Panda() {
   // the same little panda as the envelope stamp, walking

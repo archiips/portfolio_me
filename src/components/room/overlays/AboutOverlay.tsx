@@ -18,12 +18,11 @@ const SCRIPT: Msg[] = [
   { from: "me", text: "hi, I'm Archit 👋" },
   { from: "me", text: "CS & Software Engineering student at UW Bothell, living in Seattle" },
   { from: "me", img: "/about/profile.jpg" },
-  { from: "them", text: "what do you work on?" },
-  { from: "me", text: "ML systems and full-stack apps. I like taking an idea all the way to something people can click on" },
-  {
-    from: "me",
-    text: `right now I'm a ${aboutMe.experience[0].title.toLowerCase()} at ${aboutMe.experience[0].company.split(",")[0]}`,
-  },
+  { from: "them", text: "what are you working on?" },
+  { from: "me", text: "ML research at UW's DAIS group: teaching a mental-health chatbot to pick up emotion from your voice" },
+  { from: "me", text: "this summer I built the AI side of an HR portal at Quadrant, and got its answers from 124s down to 7s" },
+  { from: "them", text: "and outside of code?" },
+  { from: "me", text: "I lead Helping Handz, a volunteer org at UW. tiny homes, hygiene kits, habitat restoration" },
   { from: "them", text: "nice, how do I reach you?" },
   { from: "me", text: "the envelope under \"contact me\", or just email me :)" },
 ];

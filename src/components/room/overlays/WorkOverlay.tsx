@@ -13,7 +13,9 @@ import { EASE_OUT, enter, leave } from "./motion";
 // stats; click a card to flip it over for the full story.
 
 const STATS: Record<string, [string, string][]> = {
-  "DAIS Research Group, University of Washington": [["LLM", "mental-health bot"], ["NSF", "backed research"]],
+  "Quadrant Technologies": [["7s", "answers (was 124s)"], ["−80%", "cloud cost"]],
+  "DAIS Research Group, University of Washington": [["SER", "emotion from voice"], ["NSF", "backed research"]],
+  Catalog: [["Live", "cat social app"], ["OAuth", "+ JWT secured"]],
   "Apexiel, Inc.": [["+40%", "faster stories"], ["−60%", "content complexity"]],
   "Genmark AI": [["+50%", "feature coverage"], ["−40%", "manual work"]],
 };
@@ -22,6 +24,8 @@ const FOILS = [
   "linear-gradient(150deg,#F3DFA2 0%,#C9A24D 45%,#F5E3A8 60%,#B88A3A 100%)",
   "linear-gradient(150deg,#E9E4DA 0%,#AFA79B 45%,#F1ECE3 60%,#8F877C 100%)",
   "linear-gradient(150deg,#E8B98F 0%,#A96B3F 45%,#F0C9A3 60%,#8A5432 100%)",
+  "linear-gradient(150deg,#BFD6C8 0%,#6F9483 45%,#D4E6DB 60%,#557565 100%)",
+  "linear-gradient(150deg,#C9C3E6 0%,#7C72A8 45%,#DCD7F1 60%,#5E5590 100%)",
 ];
 
 function initials(company: string) {
@@ -33,19 +37,26 @@ function initials(company: string) {
     .join("");
 }
 
+const N = aboutMe.experience.length;
+const MID = (N - 1) / 2;
+
 function Card({ i }: { i: number }) {
   const e = aboutMe.experience[i];
   const [flipped, setFlipped] = useState(false);
+  const [hover, setHover] = useState(false);
   const company = e.company.split(",")[0];
   const stats = STATS[e.company] ?? [];
-  const fan = (i - 1) * 7;
+  const fan = (i - MID) * 5;
 
   return (
     <motion.div
-      className="relative h-[clamp(300px,42vh,380px)] w-[clamp(200px,24vw,250px)] cursor-pointer"
-      style={{ perspective: 1000, zIndex: flipped ? 10 : 3 - Math.abs(i - 1) }}
+      className="relative h-[clamp(290px,40vh,360px)] w-[clamp(190px,17vw,230px)] shrink-0 cursor-pointer"
+      // the hovered or flipped card comes to the front of the fan
+      style={{ perspective: 1000, zIndex: hover || flipped ? 20 : 10 - Math.round(Math.abs(i - MID) * 2) }}
+      onHoverStart={() => setHover(true)}
+      onHoverEnd={() => setHover(false)}
       initial={{ y: 120, opacity: 0, rotate: 0 }}
-      animate={{ y: Math.abs(i - 1) * 14, opacity: 1, rotate: fan, transition: enter(0.08 + i * 0.09, 0.6) }}
+      animate={{ y: Math.abs(i - MID) * 12, opacity: 1, rotate: fan, transition: enter(0.08 + i * 0.07, 0.6) }}
       exit={{ y: 80, opacity: 0, transition: leave(i * 0.03) }}
       whileHover={{ y: -14, rotate: fan * 0.4, transition: { duration: 0.25, ease: EASE_OUT } }}
       onClick={() => setFlipped((f) => !f)}
@@ -101,7 +112,7 @@ export default function WorkOverlay({ open, onClose }: { open: boolean; onClose:
   return (
     <Overlay open={open} onClose={onClose} hint="tap a card to flip it · click outside to close">
       <div className="flex flex-col items-center gap-10">
-        <div className="flex flex-wrap items-start justify-center gap-4 sm:gap-5">
+        <div className="flex flex-wrap items-start justify-center gap-4 lg:flex-nowrap lg:gap-0 lg:-space-x-6">
           {aboutMe.experience.map((e, i) => (
             <Card key={e.company} i={i} />
           ))}
