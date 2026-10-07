@@ -76,7 +76,7 @@ export default function RoomModel({ hovered, onHover, onSelect }: RoomModelProps
     const navs: Partial<Record<Section, THREE.Mesh[]>> = {};
     const hitNames = new Set(Object.values(HITBOX_OF));
     const navLookup = new Map<string, Section>(
-      SECTIONS.map((s) => [NAV_MESH_OF[s], s] as const)
+      SECTIONS.flatMap((s) => (NAV_MESH_OF[s] ? [[NAV_MESH_OF[s]!, s] as const] : []))
     );
 
     scene.traverse((o) => {

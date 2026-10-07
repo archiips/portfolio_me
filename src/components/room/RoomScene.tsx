@@ -1,4 +1,6 @@
 "use client";
+/* eslint-disable react-hooks/immutability -- the camera and controls are
+   three.js objects driven imperatively from useFrame, as R3F intends. */
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
@@ -71,23 +73,29 @@ function CameraIntro({
   return null;
 }
 
-// A dark glossy ground below the room, like the reference: the room and the
-// menu text reflect in it and fade out with distance.
+// The ground is invisible except for what it reflects, like the reference: an
+// unlit surface in exactly the background colour (the background is not
+// tone-mapped, so neither is this), with the blurred reflection on top. Lit
+// and fogged, it showed up as a shiny band across the back.
 function MirrorFloor() {
   return (
     <mesh rotation-x={-Math.PI / 2} position={[0, -0.101, 0]}>
-      <planeGeometry args={[60, 60]} />
+      <planeGeometry args={[200, 200]} />
       <MeshReflectorMaterial
-        resolution={1024}
-        blur={[260, 80]}
-        mixBlur={0.9}
-        mixStrength={2.2}
+        resolution={512}
+        blur={[200, 60]}
+        mixBlur={0.8}
+        mixStrength={1.6}
         mixContrast={1}
-        mirror={0.85}
+        mirror={0.7}
         depthScale={0}
-        color={BG}
-        metalness={0.4}
-        roughness={0.9}
+        color="#000000"
+        emissive={BG}
+        emissiveIntensity={1}
+        metalness={0}
+        roughness={1}
+        toneMapped={false}
+        fog={false}
       />
     </mesh>
   );
@@ -112,7 +120,7 @@ export default function RoomScene({ onSelect }: RoomSceneProps) {
   return (
     <div className="fixed inset-0" style={{ background: BG }}>
       <Canvas
-        dpr={[1, 2]}
+        dpr={[1, 1.5]}
         camera={{ position: CAM_START.toArray(), fov: 40, near: 0.1, far: 120 }}
         gl={{ antialias: true }}
         onCreated={({ gl, scene }) => {
@@ -120,7 +128,6 @@ export default function RoomScene({ onSelect }: RoomSceneProps) {
           gl.toneMapping = THREE.AgXToneMapping;
           gl.toneMappingExposure = 0.85;
           scene.background = new THREE.Color(BG);
-          scene.fog = new THREE.Fog(BG, 22, 45);
         }}
         style={{ cursor: hovered ? "pointer" : "default" }}
       >
@@ -146,7 +153,8 @@ export default function RoomScene({ onSelect }: RoomSceneProps) {
           enablePan={false}
           enableDamping
           dampingFactor={0.06}
-          minDistance={4.5}
+          minDistance={1.4}
+          zoomToCursor
           maxDistance={16}
           minPolarAngle={0.25}
           maxPolarAngle={Math.PI / 2.15}

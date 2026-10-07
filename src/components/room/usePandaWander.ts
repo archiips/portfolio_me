@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/immutability -- three.js scene objects are
+   mutated every frame inside useFrame; that is how R3F animation works. */
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
@@ -98,13 +100,14 @@ export function usePandaWander(scene: THREE.Object3D, shadow: React.RefObject<TH
     idleLeft: 1.5,
     heading: 0,
     phase: 0,
-    lookSeed: Math.random() * 10,
+    lookSeed: 0,
   });
 
   useEffect(() => {
     if (!panda) return;
     panda.position.y = 0;
     state.current.heading = panda.rotation.y;
+    state.current.lookSeed = Math.random() * 10;
     panda.rotation.set(0, state.current.heading, 0);
   }, [panda]);
 

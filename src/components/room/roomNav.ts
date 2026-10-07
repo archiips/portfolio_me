@@ -1,24 +1,26 @@
-// The Blender scene exports invisible `<section>hitbox` boxes for raycasting and
-// `nav_<section>` meshes for the visible highlight. Keeping the mapping in one
+// The Blender scene exports invisible `<name>hitbox` boxes for raycasting and
+// `nav_<name>` meshes for the visible highlight. Keeping the mapping in one
 // place means the 3D scene and the panels can never drift apart.
-export const SECTIONS = ["projects", "aboutme", "education", "work", "contact"] as const;
+export const SECTIONS = ["projects", "aboutme", "education", "work", "contact", "photos"] as const;
 
 export type Section = (typeof SECTIONS)[number];
 
-export const HITBOX_OF: Record<Section, string> = {
+// Sections with a clickable object in the room. "contact" is menu-only; the
+// photo garland (exported as the contact hitbox) opens the photo stack.
+export const HITBOX_OF: Partial<Record<Section, string>> = {
   projects: "projectshitbox",
   aboutme: "aboutmehitbox",
   education: "educationhitbox",
   work: "workhitbox",
-  contact: "contacthitbox",
+  photos: "contacthitbox",
 };
 
-export const NAV_MESH_OF: Record<Section, string> = {
+export const NAV_MESH_OF: Partial<Record<Section, string>> = {
   projects: "nav_projects",
   aboutme: "nav_aboutme",
   education: "nav_education",
   work: "nav_work",
-  contact: "nav_contact",
+  photos: "nav_contact",
 };
 
 export const LABEL_OF: Record<Section, string> = {
@@ -27,6 +29,7 @@ export const LABEL_OF: Record<Section, string> = {
   education: "Education",
   work: "Experience",
   contact: "Contact",
+  photos: "Photos",
 };
 
 export function sectionFromHitbox(name: string): Section | null {

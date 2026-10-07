@@ -990,6 +990,29 @@ def space_wall_items():
     bpy.context.view_layer.update()
 
 
+def build_wall_trim():
+    """Wooden cap along the top of both walls, posts on the two exposed wall
+    ends and small brackets under the cap - the diorama framing the
+    reference room has."""
+    O = bpy.data.objects
+    for o in [o for o in O if o.name.startswith("Trim_")]:
+        bpy.data.objects.remove(o, do_unlink=True)
+    wood = material("Trim_Wood", 0x5B3F2A, rough=0.7)
+    dark = material("Trim_Wood_Dark", 0x3E2A1C, rough=0.75)
+    TOP, H, P = 2.7, 0.10, 0.04          # wall top, cap height, overhang
+    # caps: back wall (y 2.0-2.1) and left wall (x -2.3 - -2.2)
+    box("Trim_Cap_Back", -2.3 - P, 2.2 + P, 2.0 - P, 2.1 + P, TOP, TOP + H, "Shell", material=wood)
+    box("Trim_Cap_Left", -2.3 - P, -2.2 + P, -2.0 - P, 2.0, TOP, TOP + H, "Shell", material=wood)
+    # posts on the open ends: front of the left wall, right of the back wall
+    box("Trim_Post_Left", -2.3 - P, -2.2 + P, -2.0 - P, -2.0 + 0.06, 0.0, TOP, "Shell", material=wood)
+    box("Trim_Post_Back", 2.2 - 0.06, 2.2 + P, 2.0 - P, 2.1 + P, 0.0, TOP, "Shell", material=wood)
+    # brackets under the cap, on the room side
+    for i, x in enumerate((-1.5, -0.3, 0.9)):
+        box(f"Trim_Bracket_B{i}", x - 0.03, x + 0.03, 2.0 - P, 2.0, TOP - 0.12, TOP, "Shell", material=dark)
+    for i, y in enumerate((-1.2, 0.0, 1.2)):
+        box(f"Trim_Bracket_L{i}", -2.2, -2.2 + P, y - 0.03, y + 0.03, TOP - 0.12, TOP, "Shell", material=dark)
+
+
 def polish_pass():
     """Fixes from reviewing the baked room in the browser."""
     O = bpy.data.objects
@@ -1063,8 +1086,31 @@ def polish_pass():
     if ff:
         ff.location = (4.2, -4.6, 3.2)
         ff.rotation_euler = (Vector((0, 0.3, 0.9)) - ff.location).to_track_quat('-Z', 'Y').to_euler()
-    light("Rim_Cool", energy=30)
+    # The cool rim sat outside the room and only lit the walls' outer edges,
+    # a blue wedge when you orbit round the left side.
+    rim = O.get("Rim_Cool")
+    if rim:
+        bpy.data.objects.remove(rim, do_unlink=True)
     light("GlowLight", energy=45)
+
+    # The photo-garland corner was the darkest part of the room.
+    gs = bpy.data.objects.new("Garland_Spot", bpy.data.lights.new("Garland_Spot", 'AREA'))
+    bpy.data.collections["Lighting"].objects.link(gs)
+    gs.data.shape, gs.data.size, gs.data.size_y = 'RECTANGLE', 1.6, 0.5
+    gs.data.energy, gs.data.color = 30, (1.0, 0.82, 0.6)
+    gs.location = (-1.45, 0.85, 2.3)
+    gs.rotation_euler = (Vector((-1.45, 1.95, 1.8)) - gs.location).to_track_quat('-Z', 'Y').to_euler()
+
+    # The sparrow straddled a cabinet divider; it gets the wide cubby and the
+    # pyraminx the narrow one.
+    def centre_x(root, x):
+        ms = [o for o in [root] + list(root.children_recursive) if o.type == 'MESH']
+        xs = [(o.matrix_world @ Vector(c)).x for o in ms for c in o.bound_box]
+        root.location.x += x - (min(xs) + max(xs)) / 2
+        bpy.context.view_layer.update()
+    for name, x in (("Sparrow", -0.43), ("Pyraminx", -0.672)):
+        if name in O:
+            centre_x(O[name], x)
 
 
 def main():
@@ -1086,6 +1132,7 @@ def main():
     space_wall_items()
     settle_props()
     polish_pass()
+    build_wall_trim()
     build_camera()
     build_nav()
     os.makedirs(os.path.dirname(BLEND_OUT), exist_ok=True)

@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useState } from "react";
 import ProjectsPanel from "@/components/ProjectsPanel";
 import AboutPanel from "@/components/AboutPanel";
+import PhotoStack from "@/components/room/PhotoStack";
 import type { Section } from "@/components/room/roomNav";
 
 // WebGL cannot render on the server, so the whole scene is client-only.
@@ -19,12 +20,12 @@ const RoomScene = dynamic(() => import("@/components/room/RoomScene"), {
 });
 
 export default function RoomPage() {
-  const [openPanel, setOpenPanel] = useState<"projects" | "about" | null>(null);
+  const [openPanel, setOpenPanel] = useState<"projects" | "about" | "photos" | null>(null);
 
   // The room has five pickable objects; the site currently has two panels, and
   // AboutPanel already covers education, experience and contact.
   const handleSelect = (s: Section) =>
-    setOpenPanel(s === "projects" ? "projects" : "about");
+    setOpenPanel(s === "projects" ? "projects" : s === "photos" ? "photos" : "about");
 
   return (
     <main className="h-screen w-screen overflow-hidden bg-[#201910]">
@@ -34,6 +35,7 @@ export default function RoomPage() {
         onClose={() => setOpenPanel(null)}
       />
       <AboutPanel isOpen={openPanel === "about"} onClose={() => setOpenPanel(null)} />
+      <PhotoStack isOpen={openPanel === "photos"} onClose={() => setOpenPanel(null)} />
     </main>
   );
 }
