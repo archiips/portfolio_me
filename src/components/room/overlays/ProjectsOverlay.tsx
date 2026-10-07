@@ -94,18 +94,17 @@ function Record({ i, title }: { i: number; title: string }) {
   );
 }
 
-// returning: coming back from a record. The crate and the other sleeves are
-// simply there again (one quick fade, all together) and only the picked
-// sleeve flies home; replaying the first-open deal-in made the crate rise
-// ahead of its records.
-function Crate({ onPick, returning }: { onPick: (i: number) => void; returning: boolean }) {
+// The crate stays mounted the whole time a record is out, only fading, so
+// going back never re-lays it out or replays its deal-in (which made the
+// crate rise ahead of its records). Only the picked sleeve moves.
+function Crate({ onPick, hidden }: { onPick: (i: number) => void; hidden: boolean }) {
   return (
     <motion.div
-      key="crate"
-      className="relative mx-auto w-[min(94vw,900px)] pt-16"
-      initial={returning ? { opacity: 0 } : { opacity: 0, y: 40 }}
-      animate={{ opacity: 1, y: 0, transition: returning ? { duration: 0.25 } : enter(0, 0.5) }}
-      exit={{ opacity: 0, y: 20, transition: leave() }}
+      className="relative mx-auto w-[min(94vw,900px)] pt-16 [grid-area:1/1] self-center"
+      style={{ pointerEvents: hidden ? "none" : "auto" }}
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: hidden ? 0 : 1, y: 0 }}
+      transition={{ opacity: { duration: 0.25 }, y: enter(0, 0.5) }}
     >
       <p className="mb-3 text-center text-[#E9DFD0]/80 [font-family:var(--font-sniglet)]">
         my-projects · {projects.length} records, pick one out
@@ -121,7 +120,7 @@ function Crate({ onPick, returning }: { onPick: (i: number) => void; returning: 
               aria-label={`Open ${p.title}`}
               className="relative -mx-[clamp(14px,2.2vw,28px)] aspect-square w-[clamp(110px,17vw,190px)] shrink-0 outline-none"
               style={{ zIndex: i }}
-              initial={returning ? { y: 18, opacity: 1, rotate: (i - 3.5) * 1.2 } : { y: -60, opacity: 0 }}
+              initial={{ y: -60, opacity: 0 }}
               animate={{ y: 18, opacity: 1, rotate: (i - 3.5) * 1.2, transition: enter(0.12 + i * 0.045, 0.5) }}
               whileHover={{ y: -42, rotate: 0, transition: { duration: 0.25, ease: EASE_OUT } }}
             >
@@ -149,7 +148,7 @@ function Detail({ i, onBack }: { i: number; onBack: () => void }) {
   return (
     <motion.div
       key="detail"
-      className="mx-auto flex w-[min(94vw,980px)] flex-col items-center gap-8 md:flex-row md:items-start"
+      className="mx-auto flex w-[min(94vw,980px)] flex-col items-center gap-8 self-center [grid-area:1/1] md:flex-row md:items-start"
       exit={{ opacity: 0, transition: leave() }}
     >
       <div className="relative aspect-square w-[min(70vw,320px)] shrink-0">
@@ -211,29 +210,21 @@ function Detail({ i, onBack }: { i: number; onBack: () => void }) {
 
 export default function ProjectsOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [current, setCurrent] = useState<number | null>(null);
-  const [returning, setReturning] = useState(false);
   const close = () => {
     onClose();
-    setTimeout(() => {
-      setCurrent(null);
-      setReturning(false);
-    }, 350);
+    setTimeout(() => setCurrent(null), 350);
   };
 
   return (
     <Overlay open={open} onClose={close}>
       <LayoutGroup>
-        <AnimatePresence mode="popLayout">
-          {current === null ? (
-            <Crate key="crate" returning={returning} onPick={setCurrent} />
-          ) : (
-            <Detail key="detail" i={current} onBack={() => {
-                setReturning(true);
-                setCurrent(null);
-              }}
-            />
-          )}
-        </AnimatePresence>
+        {/* crate and record share one grid cell, stacked */}
+        <div className="grid">
+          <Crate hidden={current !== null} onPick={setCurrent} />
+          <AnimatePresence>
+            {current !== null && <Detail key="detail" i={current} onBack={() => setCurrent(null)} />}
+          </AnimatePresence>
+        </div>
       </LayoutGroup>
     </Overlay>
   );
