@@ -184,11 +184,11 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
               {k}
             </kbd>
           ))}
-          <span className="ml-1">move · Q/E tilt · drag to look</span>
+          <span className="ml-1">walk · Q/E down/up · drag to orbit</span>
         </div>
         <div className="flex items-center gap-1.5">
           <kbd className="rounded border border-[#E9DFD0]/30 px-1.5 py-0.5 font-sans">Shift</kbd>
-          <span className="ml-1">shift lock: look with the mouse, no dragging</span>
+          <span className="ml-1">mouse look: first-person, move the mouse to turn</span>
         </div>
       </div>
 
@@ -197,7 +197,7 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
         <>
           <div className="pointer-events-none fixed left-1/2 top-1/2 z-20 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#FFDE85] shadow-[0_0_6px_rgba(255,222,133,0.8)]" />
           <div className="pointer-events-none fixed bottom-6 left-1/2 z-20 -translate-x-1/2 rounded-full bg-black/50 px-4 py-1.5 text-xs text-[#FFDE85]">
-            shift lock on · Shift or Esc to exit
+            mouse look · WASD to walk · Shift or Esc to exit
           </div>
         </>
       )}

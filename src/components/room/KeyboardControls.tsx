@@ -5,25 +5,29 @@ import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
-// WASD / arrow keys move the camera around the room on the same orbit the
-// mouse uses: W/S in and out, A/D around, Q/E higher or lower. Limits come
-// from the OrbitControls, so keys and mouse can never disagree.
+// First-person style movement on top of the orbit camera.
 //
-// Shift toggles "shift lock" (as in Roblox): the pointer is locked and plain
-// mouse movement turns the camera, no dragging. Shift or Esc leaves it.
+// WASD / arrows move the camera where it is looking (W forward, S back, A/D
+// strafe), Q/E down and up. The orbit target moves with it, so dragging still
+// orbits from wherever you end up.
+//
+// Shift toggles mouse look: the pointer locks and moving the mouse turns the
+// view in place, like a first-person game, while WASD flies. Orbit is off in
+// that mode (its polar limits would fight looking up). Leaving it puts the
+// orbit target a few metres in front of you, so nothing jumps.
 
-const ORBIT_SPEED = 1.2; // rad/s
-const TILT_SPEED = 0.8; // rad/s
-const ZOOM_SPEED = 1.1; // fraction of distance per second
-const LOOK_SPEED = 0.0028; // rad per pixel of mouse movement in shift lock
+const MOVE_SPEED = 2.4; // m/s
+const LOOK_SPEED = 0.0024; // rad per pixel
+const BOUNDS = new THREE.Box3(new THREE.Vector3(-10, 0.15, -10), new THREE.Vector3(10, 9, 10));
+const ORBIT_DIST = 4; // target distance when handing back to orbit
 
 const KEYMAP: Record<string, string> = {
-  KeyW: "in", ArrowUp: "in",
-  KeyS: "out", ArrowDown: "out",
+  KeyW: "fwd", ArrowUp: "fwd",
+  KeyS: "back", ArrowDown: "back",
   KeyA: "left", ArrowLeft: "left",
   KeyD: "right", ArrowRight: "right",
-  KeyQ: "up",
-  KeyE: "down",
+  KeyQ: "down",
+  KeyE: "up",
 };
 
 interface Props {
@@ -38,13 +42,31 @@ export default function KeyboardControls({ controls, enabled, onUsed, onShiftLoc
   const held = useRef(new Set<string>());
   const look = useRef({ dx: 0, dy: 0 });
   const locked = useRef(false);
+  const euler = useRef(new THREE.Euler(0, 0, 0, "YXZ"));
+  const tmp = useRef({ fwd: new THREE.Vector3(), right: new THREE.Vector3(), move: new THREE.Vector3() });
 
-  // Shift lock: pointer lock on the canvas, mouse movement turns the camera.
+  // Mouse look (pointer lock)
   useEffect(() => {
     const canvas = gl.domElement;
     const onLockChange = () => {
-      locked.current = document.pointerLockElement === canvas;
-      onShiftLock?.(locked.current);
+      const on = document.pointerLockElement === canvas;
+      locked.current = on;
+      const c = controls.current;
+      if (on) {
+        euler.current.setFromQuaternion(camera.quaternion, "YXZ");
+        if (c) c.enabled = false;
+      } else if (c) {
+        // Hand back to orbit: target straight ahead, tipped slightly
+        // downward so it sits inside the orbit's polar limits.
+        const dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+        dir.y = Math.min(dir.y, -0.08);
+        dir.normalize();
+        c.target.copy(camera.position).addScaledVector(dir, ORBIT_DIST);
+        c.enabled = true;
+        c.update();
+      }
+      onShiftLock?.(on);
     };
     const onMove = (e: MouseEvent) => {
       if (!locked.current) return;
@@ -64,15 +86,14 @@ export default function KeyboardControls({ controls, enabled, onUsed, onShiftLoc
       document.removeEventListener("mousemove", onMove);
       window.removeEventListener("keydown", onShift);
     };
-  }, [gl, enabled, onShiftLock]);
+  }, [gl, camera, controls, enabled, onShiftLock]);
 
   // An overlay opening (or the loader) releases the lock.
   useEffect(() => {
     if (!enabled && document.pointerLockElement) document.exitPointerLock();
   }, [enabled]);
-  const sph = useRef(new THREE.Spherical());
-  const offset = useRef(new THREE.Vector3());
 
+  // Keys
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -100,29 +121,51 @@ export default function KeyboardControls({ controls, enabled, onUsed, onShiftLoc
 
   useFrame((_, dtRaw) => {
     const c = controls.current;
-    const keys = held.current;
-    const { dx, dy } = look.current;
-    if (!enabled || !c || !c.enabled || (keys.size === 0 && dx === 0 && dy === 0)) return;
+    if (!enabled || !c) return;
     const dt = Math.min(dtRaw, 0.05);
-    look.current.dx = look.current.dy = 0;
+    const keys = held.current;
 
-    offset.current.copy(camera.position).sub(c.target);
-    const s = sph.current.setFromVector3(offset.current);
-    if (keys.has("left")) s.theta -= ORBIT_SPEED * dt;
-    if (keys.has("right")) s.theta += ORBIT_SPEED * dt;
-    if (keys.has("up")) s.phi -= TILT_SPEED * dt;
-    if (keys.has("down")) s.phi += TILT_SPEED * dt;
-    if (keys.has("in")) s.radius *= 1 - ZOOM_SPEED * dt;
-    if (keys.has("out")) s.radius *= 1 + ZOOM_SPEED * dt;
-    s.theta -= dx * LOOK_SPEED;
-    s.phi -= dy * LOOK_SPEED;
-    s.phi = THREE.MathUtils.clamp(s.phi, c.minPolarAngle, c.maxPolarAngle);
-    s.radius = THREE.MathUtils.clamp(s.radius, c.minDistance, c.maxDistance);
-    s.makeSafe();
+    // turn the head (mouse look only)
+    if (locked.current) {
+      const { dx, dy } = look.current;
+      look.current.dx = look.current.dy = 0;
+      if (dx || dy) {
+        const e = euler.current;
+        e.y -= dx * LOOK_SPEED;
+        e.x = THREE.MathUtils.clamp(e.x - dy * LOOK_SPEED, -1.45, 1.45);
+        camera.quaternion.setFromEuler(e);
+      }
+    } else if (!c.enabled) {
+      return; // camera intro still running
+    }
 
-    camera.position.copy(c.target).add(offset.current.setFromSpherical(s));
-    camera.lookAt(c.target);
-    c.update();
+    if (keys.size === 0) return;
+
+    // walk where the camera faces, level with the floor
+    const { fwd, right, move } = tmp.current;
+    camera.getWorldDirection(fwd);
+    fwd.y = 0;
+    if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1);
+    fwd.normalize();
+    right.crossVectors(fwd, camera.up).normalize();
+    move.set(0, 0, 0);
+    if (keys.has("fwd")) move.add(fwd);
+    if (keys.has("back")) move.sub(fwd);
+    if (keys.has("right")) move.add(right);
+    if (keys.has("left")) move.sub(right);
+    if (keys.has("up")) move.y += 1;
+    if (keys.has("down")) move.y -= 1;
+    if (move.lengthSq() === 0) return;
+    move.normalize().multiplyScalar(MOVE_SPEED * dt);
+
+    // move, kept inside the play area; the orbit target travels by the same
+    // amount so dragging afterwards still orbits around what's in front
+    const before = camera.position.clone();
+    camera.position.add(move);
+    BOUNDS.clampPoint(camera.position, camera.position);
+    const applied = camera.position.clone().sub(before);
+    c.target.add(applied);
+    if (!locked.current) c.update();
   });
 
   return null;
