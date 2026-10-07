@@ -16,9 +16,11 @@ REPO = os.path.expanduser("~/main/PROJECTS/PORTFOLIO/portfolio-app")
 BLEND_OUT = os.path.expanduser("~/main/Blender/room_baked.blend")
 GLB_OUT = os.path.join(REPO, "public", "models", "room-baked.glb")
 
-SAMPLES = 64
+SAMPLES = 128
 NAV_TEX = 1024        # for the individually-baked nav targets
-DENSITY = 460         # texels per metre (sqrt of surface area), per asset
+DENSITY = 460         # texels per metre (sqrt of surface area), big assets
+SMALL_DENSITY = 1400  # desk props and other small things you zoom in on
+SMALL_AREA = 1.5      # m^2 of surface; below this an asset counts as small
 MIN_TEX, MAX_TEX = 256, 2048
 POOL_TEX = 2048       # small assets share atlases of this size
 DECIMATE_TO = 30000   # 8k tore holes in the cloth meshes (bed, pillows)
@@ -145,13 +147,20 @@ def unparent_all(objs):
     """join() deletes every merged object. Any of them that parented an object
     in a LATER batch took that child's parent away, and the child fell back to
     its local transform - which is how a desk prop ended up on the rug. Baking
-    targets are static, so dropping the hierarchy (keeping world position) is
-    safe."""
+    targets are static, so the hierarchy is dropped and every transform is
+    applied to the mesh. Joining objects with mixed (and mirrored) transforms
+    turned some surfaces inside out, so the white mousepad baked black."""
+    from mathutils import Matrix
     for o in objs:
-        if o.parent:
-            mw = o.matrix_world.copy()
-            o.parent = None
-            o.matrix_world = mw
+        mw = o.matrix_world.copy()
+        o.parent = None
+        if o.data.users > 1:
+            o.data = o.data.copy()
+        o.data.transform(mw)
+        if mw.determinant() < 0:
+            o.data.flip_normals()
+        o.matrix_world = Matrix.Identity(4)
+        o.data.update()
 
 
 def hide_shadows():
@@ -213,7 +222,20 @@ def matte_for_bake(objs):
             if not m or not m.use_nodes or m.name in seen:
                 continue
             seen.add(m.name)
-            for b in (n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'):
+            nt = m.node_tree
+            # Glass/refraction/transparent shaders made the PC, the window and
+            # one prop atlas take ~15 min each (rays bouncing inside closed
+            # glass). Baked they only ever look like a flat tinted surface.
+            for g in [n for n in nt.nodes
+                      if n.type in ('BSDF_GLASS', 'BSDF_REFRACTION', 'BSDF_TRANSPARENT')]:
+                d = nt.nodes.new("ShaderNodeBsdfPrincipled")
+                col = g.inputs.get("Color")
+                d.inputs["Base Color"].default_value = col.default_value if col else (0.8, 0.8, 0.8, 1)
+                d.inputs["Roughness"].default_value = 0.6
+                for l in list(g.outputs[0].links):
+                    nt.links.new(d.outputs[0], l.to_socket)
+                nt.nodes.remove(g)
+            for b in (n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'):
                 for name, val in (("Metallic", 0.0), ("Transmission Weight", 0.0),
                                   ("Coat Weight", 0.0)):
                     inp = b.inputs.get(name)
@@ -262,8 +284,12 @@ def area(o):
     return sum(p.area for p in o.data.polygons) * k
 
 
+def density(a):
+    return SMALL_DENSITY if a < SMALL_AREA else DENSITY
+
+
 def tex_size(a):
-    px = math.sqrt(max(a, 1e-6)) * DENSITY
+    px = math.sqrt(max(a, 1e-6)) * density(a)
     size = 2 ** round(math.log2(max(px, 1)))
     return max(MIN_TEX, min(MAX_TEX, size))
 
@@ -282,14 +308,15 @@ def group_by_asset(objs):
         size = tex_size(a)
         (big if size >= 1024 else pool).append((name, ms, a, size))
     out = [(ms, size, f"a_{name}") for name, ms, a, size in big]
-    budget = (POOL_TEX * 0.55 / DENSITY) ** 2   # metres^2 that fit one pool atlas
+    budget = (POOL_TEX ** 2) * 0.5          # texels one pool atlas can really hold
     cur, cur_a, i = [], 0.0, 0
     for name, ms, a, size in sorted(pool, key=lambda g: -g[2]):
-        if cur and cur_a + a > budget:
+        texels = a * density(a) ** 2
+        if cur and cur_a + texels > budget:
             out.append((cur, POOL_TEX, f"pool{i:02d}"))
             cur, cur_a, i = [], 0.0, i + 1
         cur += ms
-        cur_a += a
+        cur_a += texels
     if cur:
         out.append((cur, POOL_TEX, f"pool{i:02d}"))
     return out
@@ -331,6 +358,42 @@ def unwrap(obj, margin=0.004):
     return uv
 
 
+def denoise(img):
+    """Cycles does not denoise bakes, which left a speckle on everything
+    (most visible on the mouse). Run the baked image through the compositor's
+    OpenImageDenoise node in a throwaway scene and copy the result back."""
+    sc = bpy.data.scenes.get("DenoiseTmp") or bpy.data.scenes.new("DenoiseTmp")
+    sc.render.engine = 'BLENDER_WORKBENCH'
+    sc.render.resolution_x, sc.render.resolution_y = img.size
+    sc.render.resolution_percentage = 100
+    sc.view_settings.view_transform = 'Standard'
+    sc.view_settings.look = 'None'
+    sc.view_settings.exposure = 0.0
+    if not sc.camera:
+        cam = bpy.data.objects.new("DenoiseCam", bpy.data.cameras.new("DenoiseCam"))
+        sc.collection.objects.link(cam)
+        sc.camera = cam
+    sc.use_nodes = True
+    nt = sc.node_tree
+    nt.nodes.clear()
+    src = nt.nodes.new("CompositorNodeImage")
+    src.image = img
+    dn = nt.nodes.new("CompositorNodeDenoise")
+    dn.prefilter = 'ACCURATE'
+    dn.use_hdr = False
+    out = nt.nodes.new("CompositorNodeComposite")
+    nt.links.new(src.outputs["Image"], dn.inputs["Image"])
+    nt.links.new(dn.outputs["Image"], out.inputs["Image"])
+    bpy.ops.render.render(scene=sc.name)
+    tmp = os.path.join(bpy.app.tempdir or "/tmp", f"dn_{img.name}.png")
+    bpy.data.images["Render Result"].save_render(tmp, scene=sc)
+    res = bpy.data.images.load(tmp)
+    img.pixels.foreach_set(list(res.pixels))
+    img.update()
+    bpy.data.images.remove(res)
+    os.remove(tmp)
+
+
 def bake_object(obj, size, tag):
     img = bpy.data.images.new(f"BK_{tag}", size, size, alpha=False)
     img.colorspace_settings.name = 'sRGB'
@@ -357,6 +420,11 @@ def bake_object(obj, size, tag):
     bpy.ops.object.bake(type='COMBINED', use_clear=True)
     log(f"  baked {tag} ({size}px, {len(obj.data.polygons)} faces) "
         f"in {time.time()-t0:.0f}s")
+
+    try:
+        denoise(img)
+    except Exception as e:  # never lose a bake to the denoiser
+        log(f"  denoise failed for {tag}: {e}")
 
     # A generated image lives only in memory. Saving the .blend without packing
     # it silently discards every pixel, and the file reopens fully black - the
