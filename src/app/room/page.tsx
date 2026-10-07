@@ -3,8 +3,7 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { useProgress } from "@react-three/drei";
-import BootSequence from "@/components/BootSequence";
-import WelcomeScreen from "@/components/WelcomeScreen";
+import RoomLoader from "@/components/room/RoomLoader";
 import { SECTIONS, type Section } from "@/components/room/roomNav";
 import PhotoStack from "@/components/room/PhotoStack";
 import AboutOverlay from "@/components/room/overlays/AboutOverlay";
@@ -16,55 +15,50 @@ import WorkOverlay from "@/components/room/overlays/WorkOverlay";
 // WebGL cannot render on the server, so the whole scene is client-only.
 const RoomScene = dynamic(() => import("@/components/room/RoomScene"), { ssr: false });
 
-type Phase = "boot" | "welcome" | "room";
+type Phase = "loading" | "room";
 
 export default function RoomPage() {
-  // Boot screen -> "hello" -> room. The room mounts straight away underneath,
-  // so the model downloads during the boot and the bar tracks that download.
-  const [phase, setPhase] = useState<Phase>("boot");
-  const [fading, setFading] = useState(false);
+  // Landing loader -> room. The room mounts straight away underneath, so the
+  // model downloads while the loader shows, and its progress line tracks that.
+  const [phase, setPhase] = useState<Phase>("loading");
+  const [loaderGone, setLoaderGone] = useState(false);
   const { progress, active } = useProgress();
 
   // Every section, from the 3D objects or the menu text, opens its own overlay.
   const [open, setOpen] = useState<Section | null>(null);
   const close = () => setOpen(null);
 
-  const go = useCallback((next: Phase) => {
-    setFading(true);
-    setTimeout(() => {
-      setPhase(next);
-      setFading(false);
-    }, 500);
+  // "come on in": the camera zoom starts at once while the loader's light
+  // opens up, and the loader unmounts when it has fully revealed the room.
+  const enterRoom = useCallback(() => {
+    setPhase("room");
+    setTimeout(() => setLoaderGone(true), 1200);
   }, []);
 
   // Deep links (/room?open=projects) skip the intro and open the section;
   // /room?skipintro goes straight to the room.
+  /* eslint-disable react-hooks/set-state-in-effect -- reads the URL once on mount */
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const hit = SECTIONS.find((s) => s === q.get("open"));
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reading the URL once on mount
-    if (hit || q.has("skipintro")) setPhase("room");
+    if (hit || q.has("skipintro")) {
+      setPhase("room");
+      setLoaderGone(true);
+    }
     if (hit) setOpen(hit);
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
-  // The bar follows the model download while one is running. Nothing running
-  // means done (or cached); the boot's minimum time covers the moment before
-  // the download starts.
+  // The line follows the model download while one is running. Nothing running
+  // means done (or cached); the loader's minimum time covers the moment
+  // before the download starts.
   const loaded = active ? progress : 100;
-  const toWelcome = useCallback(() => go("welcome"), [go]);
 
   return (
     <main className="h-screen w-screen overflow-hidden bg-[#1f1b16]">
       <RoomScene onSelect={setOpen} paused={open !== null} started={phase === "room"} />
 
-      {phase === "boot" && <BootSequence loaded={loaded} onComplete={toWelcome} />}
-      {phase === "welcome" && <WelcomeScreen onGetStarted={() => go("room")} />}
-
-      {/* fade through black between the intro screens and the room */}
-      <div
-        className="pointer-events-none fixed inset-0 z-[100] bg-black"
-        style={{ opacity: fading ? 1 : 0, transition: "opacity 500ms ease-in-out" }}
-      />
+      {!loaderGone && <RoomLoader loaded={loaded} onEnter={enterRoom} />}
 
       <AboutOverlay open={open === "aboutme"} onClose={close} />
       <ProjectsOverlay open={open === "projects"} onClose={close} />
