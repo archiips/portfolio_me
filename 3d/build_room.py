@@ -1107,6 +1107,60 @@ def polish_pass():
             centre_x(O[name], x)
 
 
+def tidy_display_cabinet():
+    """The cabinet's cubby backs were a glossy 'Bronze Mirror' (black, full of
+    reflections), and its props sat across dividers or too small to read.
+    Each prop now sits centred in its own cubby, scaled to fill ~70% of it;
+    cubbies were measured by ray casting inside the cabinet."""
+    O = bpy.data.objects
+    m = bpy.data.materials.get("Bronze Mirror")
+    if m and m.use_nodes:
+        nt = m.node_tree
+        for n in list(nt.nodes):
+            if n.type != 'OUTPUT_MATERIAL':
+                nt.nodes.remove(n)
+        b = nt.nodes.new("ShaderNodeBsdfPrincipled")
+        b.inputs["Base Color"].default_value = srgb(0xCBB89A)
+        b.inputs["Roughness"].default_value = 0.85
+        nt.links.new(b.outputs[0], next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL').inputs["Surface"])
+
+    def bbox(r):
+        ms = [o for o in [r] + list(r.children_recursive) if o.type == 'MESH' and not o.hide_render]
+        ps = [o.matrix_world @ Vector(c) for o in ms for c in o.bound_box]
+        return (Vector([min(p[i] for p in ps) for i in range(3)]),
+                Vector([max(p[i] for p in ps) for i in range(3)]))
+
+    # name: (cubby floor, ceiling, x0, x1)
+    plan = {
+        "ShelfBooks1": (1.222, 1.420, -0.560, -0.295),
+        "ShelfBooks2": (0.749, 0.947, -0.745, -0.475),
+        "Sparrow": (0.985, 1.184, -0.745, -0.475),
+        "Pyraminx": (1.222, 1.420, -0.745, -0.597),
+        "PencilHolder": (1.458, 1.657, -0.437, -0.295),
+    }
+    YC, DEPTH = 1.86, 0.20
+    for name, (f, c, x0, x1) in plan.items():
+        r = O.get(name)
+        if not r:
+            continue
+        bpy.context.view_layer.update()
+        mn, mx = bbox(r)
+        d = mx - mn
+        s = min(0.72 * (c - f) / d.z, 0.70 * (x1 - x0) / d.x, DEPTH / d.y, 1.8)
+        r.scale = r.scale * s
+        bpy.context.view_layer.update()
+        mn, mx = bbox(r)
+        r.location += Vector(((x0 + x1) / 2 - (mn.x + mx.x) / 2, YC - (mn.y + mx.y) / 2, f + 0.002 - mn.z))
+    # unreadable at this size (the rigged Slowpoke also bakes as a black
+    # silhouette)
+    for name in ("PeakingBirds", "Slowpoke.001"):
+        r = O.get(name)
+        if r:
+            for o in [r] + list(r.children_recursive):
+                o.hide_render = True
+                o.hide_set(True)
+
+
 def main():
     clear_scene()
     build_shell()
@@ -1127,6 +1181,7 @@ def main():
     settle_props()
     polish_pass()
     build_wall_trim()
+    tidy_display_cabinet()
     build_camera()
     build_nav()
     os.makedirs(os.path.dirname(BLEND_OUT), exist_ok=True)

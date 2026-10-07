@@ -23,6 +23,9 @@ SMALL_DENSITY = 1400  # desk props and other small things you zoom in on
 SMALL_AREA = 1.5      # m^2 of surface; below this an asset counts as small
 MIN_TEX, MAX_TEX = 256, 2048
 POOL_TEX = 2048       # small assets share atlases of this size
+# Small but seen up close, with fiddly geometry: in a shared atlas their
+# islands came out splotchy (the headphones picked up other props' colours).
+OWN_TEX = {"Headphones": 1024, "HeadphoneStand": 512}
 DECIMATE_TO = 30000   # 8k tore holes in the cloth meshes (bed, pillows)
 MIN_RATIO = 0.12
 
@@ -305,8 +308,8 @@ def group_by_asset(objs):
     big, pool = [], []
     for name, ms in sorted(groups.items()):
         a = sum(area(o) for o in ms)
-        size = tex_size(a)
-        (big if size >= 1024 else pool).append((name, ms, a, size))
+        size = OWN_TEX.get(name, tex_size(a))
+        (big if size >= 1024 or name in OWN_TEX else pool).append((name, ms, a, size))
     out = [(ms, size, f"a_{name}") for name, ms, a, size in big]
     budget = (POOL_TEX ** 2) * 0.5          # texels one pool atlas can really hold
     cur, cur_a, i = [], 0.0, 0
