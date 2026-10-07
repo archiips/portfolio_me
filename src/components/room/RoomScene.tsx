@@ -93,6 +93,7 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
   const [keysUsed, setKeysUsed] = useState(false);
   const markKeysUsed = useCallback(() => setKeysUsed(true), []);
   const [shiftLock, setShiftLock] = useState(false);
+  const [lookArmed, setLookArmed] = useState(false);
 
   useEffect(() => {
     const check = () => setMobile(window.innerWidth / window.innerHeight < 0.9);
@@ -145,7 +146,7 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
           {/* Compile every shader and upload every texture as soon as the
               model arrives (during the boot screen), not on first view. */}
           <Preload all />
-          <KeyboardControls controls={controls} enabled={started && !paused} onUsed={markKeysUsed} onShiftLock={setShiftLock} />
+          <KeyboardControls controls={controls} enabled={started && !paused} onUsed={markKeysUsed} onShiftLock={setShiftLock} onArmed={setLookArmed} />
         </Suspense>
 
         <OrbitControls
@@ -191,6 +192,12 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
           <span className="ml-1">mouse look: first-person, move the mouse to turn</span>
         </div>
       </div>
+
+      {lookArmed && !shiftLock && (
+        <div className="pointer-events-none fixed bottom-6 left-1/2 z-20 -translate-x-1/2 rounded-full bg-black/55 px-4 py-1.5 text-xs text-[#FFDE85]">
+          click anywhere to start mouse look · Shift to cancel
+        </div>
+      )}
 
       {/* shift lock: crosshair and a reminder of how to leave */}
       {shiftLock && (

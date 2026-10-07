@@ -35,9 +35,11 @@ interface Props {
   enabled: boolean;
   onUsed?: () => void;
   onShiftLock?: (on: boolean) => void;
+  /** Shift was pressed but the browser wants a click before locking. */
+  onArmed?: (armed: boolean) => void;
 }
 
-export default function KeyboardControls({ controls, enabled, onUsed, onShiftLock }: Props) {
+export default function KeyboardControls({ controls, enabled, onUsed, onShiftLock, onArmed }: Props) {
   const { camera, gl } = useThree();
   const held = useRef(new Set<string>());
   const look = useRef({ dx: 0, dy: 0 });
@@ -51,6 +53,7 @@ export default function KeyboardControls({ controls, enabled, onUsed, onShiftLoc
     const onLockChange = () => {
       const on = document.pointerLockElement === canvas;
       locked.current = on;
+      if (on) setArmed(false);
       const c = controls.current;
       if (on) {
         euler.current.setFromQuaternion(camera.quaternion, "YXZ");
@@ -73,11 +76,45 @@ export default function KeyboardControls({ controls, enabled, onUsed, onShiftLoc
       look.current.dx += e.movementX;
       look.current.dy += e.movementY;
     };
+    // Browsers only grant pointer lock right after a user gesture, and Chrome
+    // does not count a bare Shift press as one. Try anyway; if refused, arm
+    // it so the next click on the room starts mouse look.
+    let armed = false;
+    const setArmed = (v: boolean) => {
+      armed = v;
+      onArmed?.(v);
+    };
+    const request = () => {
+      try {
+        const p = canvas.requestPointerLock?.() as unknown as Promise<void> | undefined;
+        p?.catch?.(() => setArmed(true));
+      } catch {
+        setArmed(true);
+      }
+    };
     const onShift = (e: KeyboardEvent) => {
       if ((e.code !== "ShiftLeft" && e.code !== "ShiftRight") || e.repeat) return;
       if (locked.current) document.exitPointerLock();
-      else if (enabled) canvas.requestPointerLock?.();
+      else if (armed) setArmed(false); // second Shift cancels
+      else if (enabled) request();
     };
+    // The arming click only starts mouse look; it must not also select
+    // whatever object sits under the cursor.
+    const onArmedClick = (e: PointerEvent) => {
+      if (!armed) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      setArmed(false);
+      request();
+      // the browser still fires a click after this press; eat that one too
+      const eat = (c: Event) => {
+        c.stopImmediatePropagation();
+        c.preventDefault();
+      };
+      window.addEventListener("click", eat, { capture: true, once: true });
+      setTimeout(() => window.removeEventListener("click", eat, { capture: true }), 600);
+    };
+    canvas.addEventListener("pointerdown", onArmedClick, { capture: true });
     document.addEventListener("pointerlockchange", onLockChange);
     document.addEventListener("mousemove", onMove);
     window.addEventListener("keydown", onShift);
@@ -85,8 +122,9 @@ export default function KeyboardControls({ controls, enabled, onUsed, onShiftLoc
       document.removeEventListener("pointerlockchange", onLockChange);
       document.removeEventListener("mousemove", onMove);
       window.removeEventListener("keydown", onShift);
+      canvas.removeEventListener("pointerdown", onArmedClick, { capture: true });
     };
-  }, [gl, camera, controls, enabled, onShiftLock]);
+  }, [gl, camera, controls, enabled, onShiftLock, onArmed]);
 
   // An overlay opening (or the loader) releases the lock.
   useEffect(() => {
