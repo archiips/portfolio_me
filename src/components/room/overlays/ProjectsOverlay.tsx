@@ -94,13 +94,17 @@ function Record({ i, title }: { i: number; title: string }) {
   );
 }
 
-function Crate({ onPick }: { onPick: (i: number) => void }) {
+// returning: coming back from a record. The crate and the other sleeves are
+// simply there again (one quick fade, all together) and only the picked
+// sleeve flies home; replaying the first-open deal-in made the crate rise
+// ahead of its records.
+function Crate({ onPick, returning }: { onPick: (i: number) => void; returning: boolean }) {
   return (
     <motion.div
       key="crate"
       className="relative mx-auto w-[min(94vw,900px)] pt-16"
-      initial={{ opacity: 0, y: 40 }}
-      animate={{ opacity: 1, y: 0, transition: enter(0, 0.5) }}
+      initial={returning ? { opacity: 0 } : { opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0, transition: returning ? { duration: 0.25 } : enter(0, 0.5) }}
       exit={{ opacity: 0, y: 20, transition: leave() }}
     >
       <p className="mb-3 text-center text-[#E9DFD0]/80 [font-family:var(--font-sniglet)]">
@@ -117,7 +121,7 @@ function Crate({ onPick }: { onPick: (i: number) => void }) {
               aria-label={`Open ${p.title}`}
               className="relative -mx-[clamp(14px,2.2vw,28px)] aspect-square w-[clamp(110px,17vw,190px)] shrink-0 outline-none"
               style={{ zIndex: i }}
-              initial={{ y: -60, opacity: 0 }}
+              initial={returning ? { y: 18, opacity: 1, rotate: (i - 3.5) * 1.2 } : { y: -60, opacity: 0 }}
               animate={{ y: 18, opacity: 1, rotate: (i - 3.5) * 1.2, transition: enter(0.12 + i * 0.045, 0.5) }}
               whileHover={{ y: -42, rotate: 0, transition: { duration: 0.25, ease: EASE_OUT } }}
             >
@@ -207,9 +211,13 @@ function Detail({ i, onBack }: { i: number; onBack: () => void }) {
 
 export default function ProjectsOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [current, setCurrent] = useState<number | null>(null);
+  const [returning, setReturning] = useState(false);
   const close = () => {
     onClose();
-    setTimeout(() => setCurrent(null), 350);
+    setTimeout(() => {
+      setCurrent(null);
+      setReturning(false);
+    }, 350);
   };
 
   return (
@@ -217,9 +225,13 @@ export default function ProjectsOverlay({ open, onClose }: { open: boolean; onCl
       <LayoutGroup>
         <AnimatePresence mode="popLayout">
           {current === null ? (
-            <Crate key="crate" onPick={setCurrent} />
+            <Crate key="crate" returning={returning} onPick={setCurrent} />
           ) : (
-            <Detail key="detail" i={current} onBack={() => setCurrent(null)} />
+            <Detail key="detail" i={current} onBack={() => {
+                setReturning(true);
+                setCurrent(null);
+              }}
+            />
           )}
         </AnimatePresence>
       </LayoutGroup>
