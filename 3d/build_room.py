@@ -62,8 +62,8 @@ def build_shell():
     # dark subfloor: the plank asset has gaps modelled in, and this reads
     # through them as grout rather than as holes
     m_floor = material("Floor_Wood", 0x3A2A1C, rough=0.80)
-    m_wall = material("Wall_Warm", 0xCDB69B, rough=0.92)
-    m_trim = material("Trim_Cream", 0xEADFCD, rough=0.80)
+    m_wall = material("Wall_Warm", 0xDED5C8, rough=0.94)   # warm plaster
+    m_trim = material("Trim_Cream", 0xE6E7E1, rough=0.80)
     m_desk = material("Desk_Wood", 0x6B4428, rough=0.55)
 
     box("Floor", RX0, RX1, RY0, RY1, -T, 0.0, "Shell", material=m_floor)
@@ -173,8 +173,8 @@ def place_assets():
         ("custom-keyboard", "Keyboard", 0.36, 'x', (1.24, 1.44, DTOP + 0.004)),
         ("wirelesss-mouse", "Mouse", 0.11, 'y', (1.56, 1.43, DTOP + 0.004)),
         ("gaming-computer-", "PC", 0.46, 'z', (0.82, 1.60, 0.0)),   # clear of Desk_SideL
-        ("headphone-stand-", "HeadphoneStand", 0.26, 'z', (0.66, 1.72, DTOP + 0.002)),
-        ("headphones-rigge", "Headphones", 0.19, 'z', (0.66, 1.70, 0.86)),
+        ("headphone-stand-", "HeadphoneStand", 0.26, 'z', (0.78, 1.78, DTOP + 0.002)),
+        ("headphones-rigge", "Headphones", 0.19, 'z', (0.78, 1.76, 0.86)),
     ):
         o = append_asset(prefix, into="Desk", rename=name)
         fit(o, size, axis=axis)
@@ -279,7 +279,7 @@ def settle_props():
 def build_extras():
     """Props not in the asset library: desk lamp, mug, two framed prints."""
     m_lamp = material("Lamp_Metal", 0x2E2E33, rough=0.35, metal=0.8)
-    LX, LY = 0.62, 1.80
+    LX, LY = 0.54, 1.84
     box("Lamp_Base", LX-0.07, LX+0.07, LY-0.07, LY+0.07, DTOP, DTOP+0.022, "Desk", material=m_lamp)
     box("Lamp_Stem", LX-0.011, LX+0.011, LY-0.011, LY+0.011, DTOP+0.022, 1.11, "Desk", material=m_lamp)
     box("Lamp_Arm", LX-0.011, LX+0.20, LY-0.011, LY+0.011, 1.088, 1.11, "Desk", material=m_lamp)
@@ -290,7 +290,7 @@ def build_extras():
     ld.energy, ld.color = 34.0, srgb(0xFFD4A6)[:3]
     ld.spot_size, ld.spot_blend, ld.shadow_soft_size = math.radians(95), 0.5, 0.06
     lo = bpy.data.objects.new("DeskLamp", ld)
-    lo.location = (0.82, 1.80, 0.985)     # spots already aim down -Z; do not flip
+    lo.location = (0.74, 1.84, 0.985)     # spots already aim down -Z; do not flip
     bpy.data.collections["Lighting"].objects.link(lo)
 
     bpy.ops.mesh.primitive_cylinder_add(radius=0.040, depth=0.095, vertices=24,
@@ -495,12 +495,287 @@ def export_web(max_px=512, target_tris=8000):
     bpy.ops.export_scene.gltf(
         filepath=GLB_OUT, export_format='GLB', use_visible=True, export_apply=True,
         export_cameras=True, export_lights=True, export_yup=True,
+        export_animations=True, export_frame_range=True,
         export_image_format='JPEG', export_jpeg_quality=72,
         export_draco_mesh_compression_enable=True,
         export_draco_mesh_compression_level=6)
     for o in hidden:
         o.hide_render = True
     print(f"glb -> {os.path.getsize(GLB_OUT)/1e6:.1f} MB")
+
+
+
+def build_desk_toys():
+    """Hot wheels track, coffee cup with live steam, and the rubik's cube."""
+    O = bpy.data.objects
+
+    def to_coll(o, name):
+        for c in list(o.users_collection):
+            c.objects.unlink(o)
+        bpy.data.collections[name].objects.link(o)
+
+    # the pencil cup is replaced by the track
+    pc = O.get("PencilCup")
+    if pc:
+        for o in [pc] + list(pc.children_recursive):
+            if o.name in O:
+                bpy.data.objects.remove(O[o.name], do_unlink=True)
+
+    if "RubikCube" in O:
+        place(O["RubikCube"], x=0.56, y=1.44, z=DTOP)
+
+    # --- hot wheels track: a bezier ring bevelled by a shallow U profile ---
+    prof = bpy.data.curves.new("HW_Profile", 'CURVE')
+    prof.dimensions = '2D'
+    sp = prof.splines.new('POLY')
+    pts = [(-0.028, 0.013), (-0.028, 0.0), (0.028, 0.0), (0.028, 0.013)]
+    sp.points.add(len(pts) - 1)
+    for i, (x, y) in enumerate(pts):
+        sp.points[i].co = (x, y, 0, 1)
+    prof_obj = bpy.data.objects.new("HW_Profile", prof)
+    bpy.context.scene.collection.objects.link(prof_obj)
+
+    bpy.ops.curve.primitive_bezier_circle_add(radius=1.0, location=(0, 0, 0))
+    tr = bpy.context.active_object
+    tr.data.bevel_mode = 'OBJECT'
+    tr.data.bevel_object = prof_obj
+    tr.scale = (0.17, 0.115, 1.0)
+    tr.rotation_euler = (0, 0, math.radians(20))
+    bpy.ops.object.convert(target='MESH')   # world_bbox only measures meshes
+    tr = bpy.context.active_object
+    tr.name = "HotWheels_Track"
+    to_coll(tr, "Desk")
+    tr.data.materials.append(material("HW_Orange", 0xE8621A, rough=0.35))
+    bpy.context.view_layer.update()
+    place(tr, x=1.92, y=1.74, z=DTOP)
+    bpy.data.objects.remove(prof_obj, do_unlink=True)
+
+    bpy.ops.mesh.primitive_cube_add(size=1)
+    car = bpy.context.active_object
+    car.name = "HW_Car"
+    car.scale = (0.046, 0.022, 0.015)
+    bpy.ops.object.transform_apply(scale=True)
+    to_coll(car, "Desk")
+    car.data.materials.append(material("HW_Car_Red", 0xC8102E, rough=0.25, metal=0.6))
+    car.rotation_euler = (0, 0, math.radians(110))
+    mn, mx = world_bbox(tr)
+    place(car, x=mx.x - 0.035, y=(mn.y + mx.y) / 2 - 0.02, z=mx.z)
+
+    # --- coffee cup ---
+    CX, CY = 1.02, 1.33
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.042, depth=0.085, vertices=32,
+                                        location=(CX, CY, DTOP + 0.0425))
+    cup = bpy.context.active_object
+    cup.name = "Coffee_Cup"
+    to_coll(cup, "Desk")
+    cup.data.materials.append(material("Cup_Ceramic", 0xF2EDE4, rough=0.3))
+    bpy.ops.object.shade_smooth()
+    cup.modifiers.new("Solidify", 'SOLIDIFY').thickness = 0.004
+
+    bpy.ops.mesh.primitive_circle_add(radius=0.038, vertices=32, fill_type='NGON',
+                                      location=(CX, CY, DTOP + 0.072))
+    brew = bpy.context.active_object
+    brew.name = "Coffee_Surface"
+    to_coll(brew, "Desk")
+    brew.data.materials.append(material("Coffee", 0x2A1608, rough=0.18))
+
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.026, minor_radius=0.005,
+                                     major_segments=24, minor_segments=10,
+                                     location=(CX + 0.055, CY, DTOP + 0.045),
+                                     rotation=(math.radians(90), 0, 0))
+    h = bpy.context.active_object
+    h.name = "Cup_Handle"
+    to_coll(h, "Desk")
+    h.data.materials.append(bpy.data.materials["Cup_Ceramic"])
+    bpy.ops.object.shade_smooth()
+
+    # --- live steam -------------------------------------------------------
+    # EEVEE Next uses surface_render_method, not the old blend_method. A small
+    # emission keeps the wisps from reading as dark blobs in a dim room.
+    sm = bpy.data.materials.new("Steam")
+    sm.use_nodes = True
+    sb = next(n for n in sm.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    sb.inputs["Base Color"].default_value = srgb(0xFFFFFF)
+    sb.inputs["Roughness"].default_value = 1.0
+    sb.inputs["Alpha"].default_value = 0.085
+    sb.inputs["Emission Color"].default_value = srgb(0xFFF3E2)
+    sb.inputs["Emission Strength"].default_value = 1.1
+    if hasattr(sm, "surface_render_method"):
+        sm.surface_render_method = 'BLENDED'
+    if hasattr(sm, "use_transparent_shadow"):
+        sm.use_transparent_shadow = False
+
+    mn, mx = world_bbox(brew)
+    cx, cy, cz = (mn.x + mx.x) / 2, (mn.y + mx.y) / 2, mx.z
+    SPAN = 66
+    # phases must NOT be multiples of SPAN or the cycles modifier syncs them all
+    for i, start in enumerate([1, 23, 45, 12, 34, 56]):
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, segments=12, ring_count=8,
+                                             location=(cx, cy, cz))
+        w = bpy.context.active_object
+        w.name = f"steam_{i+1}"
+        bpy.ops.object.shade_smooth()
+        to_coll(w, "Desk")
+        w.data.materials.append(sm)
+        ph = i * 1.37
+        for k in range(5):
+            t = k / 4.0
+            f = start + round(t * SPAN)
+            s = 0.0075 + 0.009 * t
+            if k == 0:
+                s = 0.0025
+            if k == 4:
+                s = 0.0005
+            w.location = (cx + 0.019 * math.sin(t * 3.1 + ph),
+                          cy + 0.013 * math.cos(t * 2.3 + ph),
+                          cz + 0.006 + 0.125 * t)
+            w.scale = (s * 0.75, s * 0.75, s * (2.1 + 1.4 * t))
+            w.keyframe_insert("location", frame=f)
+            w.keyframe_insert("scale", frame=f)
+        for fc in w.animation_data.action.fcurves:
+            fc.modifiers.new('CYCLES')
+
+
+def build_panda():
+    """A free-roaming low-poly panda that walks a loop across the open floor."""
+    scene = bpy.context.scene
+    scene.frame_start, scene.frame_end = 1, 240
+    if "Panda" not in bpy.data.collections:
+        scene.collection.children.link(bpy.data.collections.new("Panda"))
+    WHITE = material("Panda_White", 0xF0EEE8, rough=0.75)
+    BLACK = material("Panda_Black", 0x1B1B1F, rough=0.7)
+
+    root = bpy.data.objects.new("Panda", None)
+    root.empty_display_type = 'PLAIN_AXES'
+    bpy.data.collections["Panda"].objects.link(root)
+
+    def blob(name, loc, scale, mt):
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, segments=20, ring_count=12,
+                                             location=loc)
+        o = bpy.context.active_object
+        o.name, o.scale = name, scale
+        bpy.ops.object.shade_smooth()
+        for c in list(o.users_collection):
+            c.objects.unlink(o)
+        bpy.data.collections["Panda"].objects.link(o)
+        o.data.materials.append(mt)
+        o.parent = root
+        o.matrix_parent_inverse = root.matrix_world.inverted()
+
+    blob("Panda_Body", (0, 0, 0.085), (0.075, 0.062, 0.085), WHITE)
+    blob("Panda_Head", (0, 0.012, 0.185), (0.062, 0.058, 0.055), WHITE)
+    blob("Panda_EarL", (-0.045, 0.004, 0.228), (0.022, 0.016, 0.022), BLACK)
+    blob("Panda_EarR", (0.045, 0.004, 0.228), (0.022, 0.016, 0.022), BLACK)
+    blob("Panda_EyeL", (-0.026, -0.042, 0.193), (0.019, 0.011, 0.016), BLACK)
+    blob("Panda_EyeR", (0.026, -0.042, 0.193), (0.019, 0.011, 0.016), BLACK)
+    blob("Panda_Snout", (0.0, -0.052, 0.168), (0.017, 0.012, 0.012), BLACK)
+    blob("Panda_ArmL", (-0.072, -0.012, 0.105), (0.026, 0.026, 0.040), BLACK)
+    blob("Panda_ArmR", (0.072, -0.012, 0.105), (0.026, 0.026, 0.040), BLACK)
+    blob("Panda_LegL", (-0.040, -0.010, 0.022), (0.030, 0.034, 0.024), BLACK)
+    blob("Panda_LegR", (0.040, -0.010, 0.022), (0.030, 0.034, 0.024), BLACK)
+
+    WAY = [(1.55, -1.45), (0.35, -1.70), (-0.80, -1.15), (-1.05, 0.15),
+           (0.25, -0.35), (1.45, -0.70), (1.55, -1.45)]
+    F = scene.frame_end
+    root.rotation_mode = 'XYZ'
+    for i, (x, y) in enumerate(WAY):
+        f = 1 + round(i * (F - 1) / (len(WAY) - 1))
+        nx, ny = WAY[(i + 1) % len(WAY)]
+        if (nx, ny) == (x, y):
+            nx, ny = WAY[1]
+        root.location = (x, y, 0.012 if i % 2 else 0.0)
+        root.rotation_euler.z = math.radians(math.degrees(math.atan2(ny - y, nx - x)) - 90.0)
+        root.keyframe_insert("location", frame=f)
+        root.keyframe_insert("rotation_euler", frame=f)
+    for fc in root.animation_data.action.fcurves:
+        fc.extrapolation = 'LINEAR'
+
+
+def build_wall_art():
+    """Football poster on the painting mesh, plus a vinyl sleeve and record.
+
+    The artwork is original/procedural - drop real images in and swap the
+    Base Color texture to use them instead.
+    """
+    O = bpy.data.objects
+
+    def to_coll(o, name):
+        for c in list(o.users_collection):
+            c.objects.unlink(o)
+        bpy.data.collections[name].objects.link(o)
+
+    fp = bpy.data.materials.new("Poster_Football")
+    fp.use_nodes = True
+    nt = fp.node_tree
+    bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    wave = nt.nodes.new("ShaderNodeTexWave")
+    wave.wave_type, wave.bands_direction, wave.wave_profile = 'BANDS', 'X', 'SAW'
+    wave.inputs["Scale"].default_value = 5.0
+    ramp = nt.nodes.new("ShaderNodeValToRGB")
+    ramp.color_ramp.interpolation = 'CONSTANT'
+    ramp.color_ramp.elements[0].position = 0.0
+    ramp.color_ramp.elements[0].color = srgb(0x79B7E3)
+    ramp.color_ramp.elements[1].position = 0.5
+    ramp.color_ramp.elements[1].color = srgb(0xF2F3F0)
+    nt.links.new(coord.outputs["Generated"], wave.inputs["Vector"])
+    nt.links.new(wave.outputs["Color"], ramp.inputs["Fac"])
+    nt.links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+
+    painting = O.get("aboutme") or O.get("Painting")
+    pm = next((o for o in descendants(painting) if o.type == 'MESH'), None) if painting else None
+    if pm:
+        pm.data.materials.clear()
+        pm.data.materials.append(fp)
+        painting.name = "Poster_Football"
+
+    LEFT, SY, SZ, S = -2.17, 0.28, 1.78, 0.31
+    sleeve = bpy.data.materials.new("Vinyl_Sleeve")
+    sleeve.use_nodes = True
+    snt = sleeve.node_tree
+    sb = next(n for n in snt.nodes if n.type == "BSDF_PRINCIPLED")
+    c2 = snt.nodes.new("ShaderNodeTexCoord")
+    grad = snt.nodes.new("ShaderNodeTexGradient")
+    grad.gradient_type = 'RADIAL'
+    sr = snt.nodes.new("ShaderNodeValToRGB")
+    sr.color_ramp.elements[0].position = 0.30
+    sr.color_ramp.elements[0].color = srgb(0xE9705A)
+    sr.color_ramp.elements[1].position = 0.78
+    sr.color_ramp.elements[1].color = srgb(0x2B2440)
+    snt.links.new(c2.outputs["Generated"], grad.inputs["Vector"])
+    snt.links.new(grad.outputs["Color"], sr.inputs["Fac"])
+    snt.links.new(sr.outputs["Color"], sb.inputs["Base Color"])
+    box("Vinyl_Sleeve", LEFT, LEFT + 0.008, SY - S/2, SY + S/2, SZ - S/2, SZ + S/2,
+        "Decor", material=sleeve)
+
+    for name, rad, depth, off, mt in (
+        ("Vinyl_Record", 0.148, 0.004, 0.004, material("Vinyl_Black", 0x121214, rough=0.28)),
+        ("Vinyl_Label", 0.052, 0.005, 0.007, material("Vinyl_Label_Cream", 0xE8C98A, rough=0.6)),
+    ):
+        bpy.ops.mesh.primitive_cylinder_add(radius=rad, depth=depth, vertices=40,
+                                            location=(LEFT + off, SY + 0.085, SZ),
+                                            rotation=(0, math.radians(90), 0))
+        o = bpy.context.active_object
+        o.name = name
+        to_coll(o, "Decor")
+        o.data.materials.append(mt)
+        bpy.ops.object.shade_smooth()
+
+
+def fill_shelf_books():
+    """Two book stacks and figurines on the cabinet's measured shelves."""
+    O = bpy.data.objects
+    CY = 1.87
+    for name, size, z, x, rz in (("ShelfBooks1", 0.20, 0.985, -0.58, 8),
+                                 ("ShelfBooks2", 0.18, 0.512, -0.50, -14)):
+        o = append_asset("books", into="Decor", rename=name)
+        fit(o, size)
+        rot_z(o, rz)
+        place(o, x=x, y=CY, z=z)
+    if "Pyraminx" in O:
+        place(O["Pyraminx"], x=-0.46, y=CY, z=0.276)
+    if "Sparrow" in O:
+        place(O["Sparrow"], x=-0.62, y=CY, z=0.276)
 
 
 def main():
@@ -513,6 +788,10 @@ def main():
     build_monitor_screen()
     build_lighting()
     build_extras()
+    build_desk_toys()
+    build_wall_art()
+    fill_shelf_books()
+    build_panda()
     settle_props()
     build_camera()
     build_nav()

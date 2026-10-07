@@ -79,6 +79,34 @@ In the browser, finish the look the way the reference does: a `#82ADED`
 overlay at 45% opacity in `mix-blend-mode: overlay`, plus bloom and gold
 `#FFDE85` hover outlines.
 
+## Animation
+
+The scene runs 1-240 frames and the GLB carries 8 animation clips.
+
+| What | How |
+|---|---|
+| Panda | Free-roaming walk loop over 7 waypoints across the open floor; heading is derived from the travel direction each leg |
+| Steam | Six wisps rising off the coffee, each with a CYCLES modifier |
+
+Steam phases are **1, 23, 45, 12, 34, 56** against a 66-frame span. They must
+not be exact multiples of the span or every wisp lands on the same phase and
+the plume pulses as one blob.
+
+Steam uses `surface_render_method = 'BLENDED'` — EEVEE Next ignores the older
+`blend_method`. A small emission keeps the wisps from reading as dark blobs in
+a dim room. Honestly, convincing steam is better done as a sprite/shader in the
+web layer; this is a reasonable stand-in.
+
+In Three.js, play the clips with `THREE.LoopRepeat`.
+
+## Wall art
+
+The football poster and the vinyl sleeve use **original procedural artwork**,
+not copyrighted images — stripes via a wave texture, a radial gradient for the
+sleeve. To use real artwork, drop the files in and swap the material's
+Base Color for an Image Texture node. Figma's `generate_image` can make
+original art but bills Figma AI credits, so it is not wired in.
+
 ## Interaction naming
 
 Raycast targets are invisible boxes; the visible group carries the section name.
@@ -86,7 +114,7 @@ Raycast targets are invisible boxes; the visible group carries the section name.
 | Section | Object | Hitbox |
 |---|---|---|
 | Projects | Monitor | `projectshitbox` |
-| About | Wall painting | `aboutmehitbox` |
+| About | Archit's framed photo | `aboutmehitbox` |
 | Education | Book stack | `educationhitbox` |
 | Work | Display cabinet | `workhitbox` |
 | Contact | Photo garland | `contacthitbox` |
