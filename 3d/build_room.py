@@ -281,7 +281,7 @@ def settle_props():
 def build_extras():
     """Props not in the asset library: desk lamp, mug, two framed prints."""
     m_lamp = material("Lamp_Metal", 0x2E2E33, rough=0.35, metal=0.8)
-    LX, LY = 0.58, 1.84
+    LX, LY = 0.58, 1.65   # forward of the curtain plane (y>=1.80)
     box("Lamp_Base", LX-0.07, LX+0.07, LY-0.07, LY+0.07, DTOP, DTOP+0.022, "Desk", material=m_lamp)
     box("Lamp_Stem", LX-0.011, LX+0.011, LY-0.011, LY+0.011, DTOP+0.022, 1.11, "Desk", material=m_lamp)
     box("Lamp_Arm", LX-0.011, LX+0.20, LY-0.011, LY+0.011, 1.088, 1.11, "Desk", material=m_lamp)
@@ -292,7 +292,7 @@ def build_extras():
     ld.energy, ld.color = 34.0, srgb(0xFFD4A6)[:3]
     ld.spot_size, ld.spot_blend, ld.shadow_soft_size = math.radians(95), 0.5, 0.06
     lo = bpy.data.objects.new("DeskLamp", ld)
-    lo.location = (0.78, 1.84, 0.985)     # spots already aim down -Z; do not flip
+    lo.location = (0.78, 1.65, 0.985)     # spots already aim down -Z; do not flip
     bpy.data.collections["Lighting"].objects.link(lo)
 
     bpy.ops.mesh.primitive_cylinder_add(radius=0.040, depth=0.095, vertices=24,
@@ -927,6 +927,56 @@ def make_car(name, body_hex, loc, rot_deg):
     return root
 
 
+
+def space_wall_items():
+    """Lay the four left-wall pieces out with equal gaps on one vertical centre.
+
+    Placed individually they ended up crowded against each other, with the
+    pegboard touching the shelf unit.
+    """
+    from mathutils import Vector
+    O = bpy.data.objects
+    GROUPS = [
+        ("pegboard", ["Pegboard"]),
+        ("shelf", ["FloatShelf", "shelf_strip", "StripLight"]),
+        ("vinyl", ["Vinyl_Sleeve", "Vinyl_Record", "Vinyl_Label"]),
+        ("poster", ["Poster_Messi", "Poster_Messi_F", "aboutmehitbox"]),
+    ]
+
+    def group_bbox(names):
+        lo = Vector((1e9, 1e9, 1e9))
+        hi = Vector((-1e9, -1e9, -1e9))
+        for n in names:
+            o = O.get(n)
+            if not o:
+                continue
+            a, b = world_bbox(o)
+            if (b - a).length == 0:
+                continue
+            lo = Vector((min(lo.x, a.x), min(lo.y, a.y), min(lo.z, a.z)))
+            hi = Vector((max(hi.x, b.x), max(hi.y, b.y), max(hi.z, b.z)))
+        return lo, hi
+
+    spans = []
+    for label, names in GROUPS:
+        lo, hi = group_bbox(names)
+        spans.append((names, lo, hi, hi.y - lo.y))
+
+    Y0, Y1, ZC = -1.86, 1.42, 1.60
+    gap = (Y1 - Y0 - sum(s[3] for s in spans)) / (len(spans) - 1)
+    cursor = Y0
+    for names, lo, hi, w in spans:
+        dy = cursor - lo.y
+        dz = ZC - (lo.z + hi.z) / 2
+        for n in names:
+            o = O.get(n)
+            if o:
+                o.location.y += dy
+                o.location.z += dz
+        cursor += w + gap
+    bpy.context.view_layer.update()
+
+
 def main():
     clear_scene()
     build_shell()
@@ -943,6 +993,7 @@ def main():
     whiten_peripherals()
     fill_shelf_books()
     build_panda()
+    space_wall_items()
     settle_props()
     build_camera()
     build_nav()

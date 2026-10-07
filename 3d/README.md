@@ -88,6 +88,15 @@ stand, coffee cup and mousepad all overlapped at some point. Current zones:
 - **x 1.01–1.71** — monitor, white mousepad, keyboard, white mouse
 - **x 1.72–2.15** — hot wheels track with three die-cast cars, pencil, lego
 
+## Wall spacing
+
+`space_wall_items()` lays the pegboard, shelf unit, vinyl and poster out with
+equal gaps across y −1.86 → 1.42, all on one vertical centre at z 1.60. Placed
+individually they crowded together, with the pegboard touching the shelf.
+
+The desk lamp sits at y 1.65. The curtain plane starts at y 1.80 and the lamp
+is 1.11 m tall, so at its original y 1.84 the shade passed straight through it.
+
 ## Animation
 
 The scene runs 1-240 frames and the GLB carries 8 animation clips.
