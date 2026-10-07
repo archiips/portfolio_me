@@ -80,3 +80,11 @@ body {
 .no-transition * {
   transition: none !important;
 }
+
+/* The room's overlays are animated with motion, which writes transform every
+   frame. The global 200ms transform transition above would chase those writes
+   and make every animation lag, so transform is left out here. */
+.room-ui,
+.room-ui * {
+  transition-property: color, background-color, border-color, opacity, box-shadow;
+}

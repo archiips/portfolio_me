@@ -1,9 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AnimatePresence, motion, type PanInfo } from "motion/react";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import {
+  AnimatePresence,
+  motion,
+  useMotionValue,
+  useTransform,
+  type PanInfo,
+} from "motion/react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { assetPath } from "@/lib/utils";
+import Overlay from "./overlays/Overlay";
 
 // Placeholder set: the 10 polaroids on the garland in the room. Swap in your
 // own by replacing the files in public/photos (and adding captions here).
@@ -12,150 +19,167 @@ const PHOTOS = Array.from({ length: 10 }, (_, i) => ({
   caption: "",
 }));
 
-// Tilts for the cards waiting underneath, so the deck reads as a messy pile.
-const TILT = [0, -5, 4, -2.5];
+const VISIBLE = 4; // cards drawn in the pile
+// Resting pose for each depth in the pile: a messy, slightly fanned stack.
+const SLOT = [
+  { x: 0, y: 0, rotate: 0, scale: 1 },
+  { x: -10, y: 12, rotate: -5, scale: 0.97 },
+  { x: 12, y: 22, rotate: 4.5, scale: 0.94 },
+  { x: -4, y: 30, rotate: -2, scale: 0.91 },
+];
 const SWIPE_DISTANCE = 110;
 const SWIPE_VELOCITY = 500;
+
+function label(i: number) {
+  return `${String(i + 1).padStart(2, "0")} / ${PHOTOS.length}`;
+}
+
+// The garland's photos are already polaroids (white border included), so the
+// image is the whole card. Your own photos get the same treatment.
+function Polaroid({ i }: { i: number }) {
+  return (
+    <div className="relative h-full w-full overflow-hidden rounded-[4px] bg-[#FBF8F2] shadow-[0_18px_40px_rgba(0,0,0,0.45)]">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={PHOTOS[i].src}
+        alt={PHOTOS[i].caption || `Photo ${i + 1}`}
+        draggable={false}
+        className="h-full w-full select-none object-cover"
+      />
+      <span className="absolute bottom-3 right-4 text-sm text-[#5b4a3a]/70 [font-family:var(--font-sniglet)]">
+        {PHOTOS[i].caption || label(i)}
+      </span>
+    </div>
+  );
+}
+
+interface CardProps {
+  photo: number;
+  depth: number;
+  dir: number;
+  intro: boolean;
+  onSwipe: (d: number) => void;
+}
+
+function Card({ photo, depth, dir, intro, onSwipe }: CardProps) {
+  const x = useMotionValue(0);
+  // Tilt with the drag, like holding a photo by its bottom edge.
+  const dragRotate = useTransform(x, [-300, 0, 300], [-16, 0, 16]);
+  const isTop = depth === 0;
+  const slot = SLOT[depth];
+
+  const onDragEnd = (_: unknown, info: PanInfo) => {
+    if (info.offset.x < -SWIPE_DISTANCE || info.velocity.x < -SWIPE_VELOCITY) onSwipe(1);
+    else if (info.offset.x > SWIPE_DISTANCE || info.velocity.x > SWIPE_VELOCITY) onSwipe(-1);
+  };
+
+  return (
+    <motion.div
+      className={`absolute inset-0 ${isTop ? "cursor-grab active:cursor-grabbing" : ""}`}
+      style={{ zIndex: VISIBLE - depth, x: isTop ? x : undefined }}
+      custom={dir}
+      variants={{
+        // On open, each card is unpinned from the garland above and falls
+        // into the pile, deepest first.
+        unpinned: { y: "-75vh", x: (photo % 3 - 1) * 140, rotate: (photo % 2 ? 1 : -1) * 25, scale: 0.55, opacity: 0 },
+        // A previous card comes back in from the side it was swiped to.
+        returning: { x: -420, y: 0, rotate: -18, scale: 1, opacity: 0 },
+        // A new card joins the bottom of the pile from behind.
+        joining: { ...SLOT[VISIBLE - 1], y: SLOT[VISIBLE - 1].y + 20, opacity: 0 },
+        rest: {
+          ...slot,
+          x: isTop ? 0 : slot.x,
+          opacity: 1,
+          transition: {
+            type: "spring",
+            stiffness: 210,
+            damping: 22,
+            delay: intro ? (VISIBLE - 1 - depth) * 0.12 + 0.15 : 0,
+          },
+        },
+        gone: (d: number) => ({
+          x: d > 0 ? -560 : 560,
+          rotate: d > 0 ? -24 : 24,
+          opacity: 0,
+          transition: { duration: 0.35, ease: "easeOut" },
+        }),
+      }}
+      initial={intro ? "unpinned" : isTop && dir < 0 ? "returning" : "joining"}
+      animate="rest"
+      exit={isTop ? "gone" : { opacity: 0, transition: { duration: 0.2 } }}
+      drag={isTop ? "x" : false}
+      dragElastic={0.85}
+      dragConstraints={{ left: 0, right: 0 }}
+      onDragEnd={isTop ? onDragEnd : undefined}
+      whileDrag={{ scale: 1.03 }}
+    >
+      <motion.div className="h-full w-full" style={{ rotate: isTop ? dragRotate : 0 }}>
+        <Polaroid i={photo} />
+      </motion.div>
+    </motion.div>
+  );
+}
 
 interface PhotoStackProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-function Polaroid({ src, caption, label }: { src: string; caption: string; label: string }) {
-  return (
-    <div className="flex h-full w-full flex-col rounded-[6px] bg-[#FBF8F2] p-3 pb-0 shadow-[0_18px_40px_rgba(0,0,0,0.45)]">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt={caption || label}
-        draggable={false}
-        className="aspect-[430/512] w-full select-none rounded-[2px] object-cover"
-      />
-      <div className="flex flex-1 items-center justify-between px-1 text-sm text-[#5b4a3a]">
-        <span>{caption}</span>
-        <span className="opacity-60">{label}</span>
-      </div>
-    </div>
-  );
-}
-
 export default function PhotoStack({ isOpen, onClose }: PhotoStackProps) {
   const n = PHOTOS.length;
   // [index of the top card, direction of the last move]
   const [[index, dir], setPage] = useState<[number, number]>([0, 0]);
+  const [intro, setIntro] = useState(true);
 
   const paginate = useCallback(
-    (d: number) => setPage(([i]) => [(i + d + n) % n, d]),
+    (d: number) => {
+      setIntro(false);
+      setPage(([i]) => [(i + d + n) % n, d]);
+    },
     [n]
   );
+
+  // Next time it opens, the photos fall from the garland again.
+  const close = () => {
+    onClose();
+    setTimeout(() => setIntro(true), 400);
+  };
 
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
       if (e.key === "ArrowLeft") paginate(1);
       if (e.key === "ArrowRight") paginate(-1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, onClose, paginate]);
+  }, [isOpen, paginate]);
 
-  const onDragEnd = (_: unknown, info: PanInfo) => {
-    if (info.offset.x < -SWIPE_DISTANCE || info.velocity.x < -SWIPE_VELOCITY) paginate(1);
-    else if (info.offset.x > SWIPE_DISTANCE || info.velocity.x > SWIPE_VELOCITY) paginate(-1);
-  };
-
-  const label = (i: number) => `${String(i + 1).padStart(2, "0")} / ${n}`;
+  const pile = Array.from({ length: VISIBLE }, (_, d) => (index + d) % n);
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-black/55 backdrop-blur-sm"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-        >
-          <button
-            aria-label="Close photos"
-            onClick={onClose}
-            className="absolute right-5 top-5 rounded-full p-2 text-[#E9DFD0] transition-colors hover:text-[#FFDE85]"
-          >
-            <X className="h-7 w-7" />
+    <Overlay open={isOpen} onClose={close} hint="drag a photo left or right · click outside to close">
+      <div className="flex flex-col items-center gap-8">
+        <div className="relative aspect-[430/512] h-[min(62vh,500px)]">
+          <AnimatePresence custom={dir} initial>
+            {pile
+              .map((photo, depth) => (
+                <Card key={photo} photo={photo} depth={depth} dir={dir} intro={intro} onSwipe={paginate} />
+              ))
+              .reverse()}
+          </AnimatePresence>
+        </div>
+
+        <div className="flex items-center gap-6 text-[#E9DFD0]">
+          <button aria-label="Next photo" onClick={() => paginate(1)} className="rounded-full p-2 hover:text-[#FFDE85]">
+            <ChevronLeft className="h-7 w-7" />
           </button>
-
-          <div
-            className="relative h-[min(72vh,560px)] w-[min(78vw,380px)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* The pile underneath. Each card flies up into place on open. */}
-            {[3, 2, 1].map((k) => {
-              const i = (index + k) % n;
-              return (
-                <motion.div
-                  key={`under-${k}`}
-                  className="absolute inset-0"
-                  initial={{ y: 260, opacity: 0, rotate: TILT[k] * 3 }}
-                  animate={{ y: k * 10, opacity: 1, rotate: TILT[k], scale: 1 - k * 0.035 }}
-                  exit={{ y: 260, opacity: 0 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 26, delay: (3 - k) * 0.06 }}
-                >
-                  <Polaroid {...PHOTOS[i]} label={label(i)} />
-                </motion.div>
-              );
-            })}
-
-            {/* The top card: drag it left or right. */}
-            <AnimatePresence initial={true} custom={dir}>
-              <motion.div
-                key={index}
-                className="absolute inset-0 cursor-grab touch-pan-y active:cursor-grabbing"
-                custom={dir}
-                drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.9}
-                onDragEnd={onDragEnd}
-                whileDrag={{ scale: 1.03 }}
-                variants={{
-                  enter: (d: number) =>
-                    d === 0
-                      ? { y: 300, opacity: 0, rotate: 10 }
-                      : { y: 10, scale: 0.965, rotate: TILT[1], opacity: 1 },
-                  center: { x: 0, y: 0, scale: 1, rotate: 0, opacity: 1 },
-                  exit: (d: number) => ({
-                    x: d > 0 ? -520 : 520,
-                    rotate: d > 0 ? -18 : 18,
-                    opacity: 0,
-                    transition: { duration: 0.32 },
-                  }),
-                }}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ type: "spring", stiffness: 300, damping: 28, delay: dir === 0 ? 0.2 : 0 }}
-                style={{ zIndex: 5 }}
-              >
-                <Polaroid {...PHOTOS[index]} label={label(index)} />
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          <div
-            className="absolute bottom-8 left-1/2 flex -translate-x-1/2 items-center gap-6 text-[#E9DFD0]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button aria-label="Next photo" onClick={() => paginate(1)} className="rounded-full p-2 hover:text-[#FFDE85]">
-              <ChevronLeft className="h-7 w-7" />
-            </button>
-            <span className="text-sm tracking-wide opacity-80">swipe or use the arrows</span>
-            <button aria-label="Previous photo" onClick={() => paginate(-1)} className="rounded-full p-2 hover:text-[#FFDE85]">
-              <ChevronRight className="h-7 w-7" />
-            </button>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          <span className="w-16 text-center text-sm opacity-80">{label(index)}</span>
+          <button aria-label="Previous photo" onClick={() => paginate(-1)} className="rounded-full p-2 hover:text-[#FFDE85]">
+            <ChevronRight className="h-7 w-7" />
+          </button>
+        </div>
+      </div>
+    </Overlay>
   );
 }
