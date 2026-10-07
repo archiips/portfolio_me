@@ -11,6 +11,8 @@ BlenderKit asset library.
 | `roomlib.py` | Placement helpers — append assets, measure world bounds, scale to real metres, snap to the floor |
 | `build_room.py` | Rebuilds the entire room from scratch, headless or over MCP |
 | `room-preview.png` | Reference render of the current state |
+| `settle()` in roomlib | Raycasts a prop down onto the surface actually beneath it |
+| `face_camera()` in roomlib | Turns figurines toward the camera instead of the wall |
 | `../public/models/room.glb` | Web export (Draco + 512px textures), ~11 MB |
 
 The master `room.blend` is **not** in git — it is ~160 MB, above GitHub's
@@ -26,6 +28,13 @@ The master `room.blend` is **not** in git — it is ~160 MB, above GitHub's
 Assets are read from `~/blenderkit_data/models/` by folder prefix, so the
 BlenderKit library must be present locally.
 
+## Floor
+
+The stylized plank asset is a set of boards with gaps modelled in, so it is
+scaled to a third of the room and arrayed 3x3 to cover the slab exactly. The
+solid `Floor` stays underneath in a dark brown so the gaps read as grout
+rather than as holes.
+
 ## Room layout
 
 4.4 m x 4.0 m x 2.7 m, open on two sides as a diorama. Walls on -X and +Y,
@@ -37,20 +46,34 @@ glass (close enough that parallax never lets it peek past the wall edge).
 
 Follows the reference's scheme — warm interior, cool overlay:
 
-| Light | Colour | Role |
-|---|---|---|
-| `Sun_Key` | `#FFD9A0` | Low warm sun raking through the window |
-| `Win_Fill` | `#FFE7BF` | Soft bounce just inside the glass |
-| `Amb_Bounce` | `#FFE7BF` | Broad ambient, the reference's `AmbientLight` |
-| `Floor_Bounce` | `#FFD9B0` | Keeps floor and bed out of the mud |
-| `Front_Fill` | `#FFE7BF` | Fill from the open side |
-| `Rim_Cool` | `#82ADED` | Cool rim so the warm key reads against something |
-| `GlowLight` | `#FFD4A6` | Point light at the `glow` orb |
-| `ScreenLight` | `#8FC2F0` | Monitor spill |
-| `StripLight` | `#FFC98A` | LED strip under the floating shelf |
+Deliberately dim — the ambient rig is kept low so the practical lights
+(desk lamp, monitor, bedside orb, shelf strip) carry the room, as in the
+reference.
 
-World background is `#201910`, matching the reference's clear colour.
-Emissive meshes: `glow`, `screen_glow`, `shelf_strip`.
+| Light | Colour | Energy | Role |
+|---|---|---|---|
+| `Sun_Key` | `#FFD9A0` | 1.9 | Low warm sun raking through the window |
+| `Win_Fill` | `#FFE7BF` | 190 | Soft bounce just inside the glass |
+| `Amb_Bounce` | `#FFE7BF` | 115 | Broad ambient, the reference's `AmbientLight` |
+| `Floor_Bounce` | `#FFD9B0` | 55 | Keeps the floor off pure black |
+| `Front_Fill` | `#FFE7BF` | 42 | Fill from the open side |
+| `Rim_Cool` | `#82ADED` | 65 | Cool rim so the warm key reads against something |
+| `DeskLamp` | `#FFD4A6` | 34 | Spot — the main practical |
+| `GlowLight` | `#FFD4A6` | 70 | Point light at the bedside `glow` orb |
+| `ScreenLight` | `#8FC2F0` | 26 | Monitor spill |
+| `StripLight` | `#FFC98A` | 14 | LED strip under the floating shelf |
+
+World background `#201910` at strength 0.22, view exposure -0.30.
+Emissive meshes: `glow`, `lamp_glow`, `shelf_strip`, and the monitor's
+`Screen` mesh (textured with `public/wallpaper.jpg`).
+
+### Known limitation: area lights do not survive glTF
+
+glTF has no area-light type. Seven of the ten lights above are area lights and
+the exporter drops them, so `room.glb` currently carries only `Sun_Key`,
+`DeskLamp` and `GlowLight`. **The GLB will not look like the preview render
+until the lighting is baked to texture.** This is why the reference bakes and
+then runs a single `AmbientLight` at runtime.
 
 In the browser, finish the look the way the reference does: a `#82ADED`
 overlay at 45% opacity in `mix-blend-mode: overlay`, plus bloom and gold
@@ -70,3 +93,19 @@ Raycast targets are invisible boxes; the visible group carries the section name.
 
 Hitboxes are hidden in render but exported to the GLB — set `visible = false`
 on load and raycast against them.
+
+
+## Texture resolution
+
+The BlenderKit textures are packed inside the asset `.blend` files with no
+external path, so the 512px web downscale could not be reverted in the saved
+`room.blend`. The source assets in `~/blenderkit_data/` are untouched —
+re-running `build_room.py` restores full resolution.
+
+## Not used
+
+Four spare keyboards (`g915`, `ibm`, `white`, `apple-macintosh`) and three
+spare PC cases (`computer-build`, `creator-s-dream`, `raijintek-paean`) are
+duplicates of pieces already in the room. `smooth-podium` is four podiums
+spread 1.8 m apart and does not scale down usefully. `mini-itx-pc` has no
+`.blend` in its folder.

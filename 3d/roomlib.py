@@ -121,3 +121,64 @@ def srgb(hexcol):
         v = v/255.0
         return v/12.92 if v <= 0.04045 else ((v+0.055)/1.055)**2.4
     return (c((hexcol>>16)&255), c((hexcol>>8)&255), c(hexcol&255), 1.0)
+
+
+def _hide_set(objs, state):
+    prev = {}
+    for o in objs:
+        prev[o] = o.hide_viewport
+        o.hide_viewport = state
+    return prev
+
+
+def settle(obj, lift=0.6, samples=5):
+    """Drop obj straight down onto whatever surface is under it.
+
+    Raycasts from above several points of the footprint with the object
+    itself hidden, then puts its lowest point on the highest hit. This is
+    how we stop props hovering above beds, shelves and desks.
+    """
+    deps = bpy.context.evaluated_depsgraph_get()
+    scene = bpy.context.scene
+    mn, mx = world_bbox(obj)
+    if mx.z - mn.z <= 0:
+        return None
+
+    own = [o for o in descendants(obj)]
+    prev = _hide_set(own, True)
+    bpy.context.view_layer.update()
+
+    cx, cy = (mn.x + mx.x) / 2, (mn.y + mx.y) / 2
+    ix, iy = (mx.x - mn.x) * 0.3, (mx.y - mn.y) * 0.3
+    pts = [(cx, cy), (cx - ix, cy - iy), (cx + ix, cy - iy),
+           (cx - ix, cy + iy), (cx + ix, cy + iy)][:samples]
+
+    best = None
+    for px, py in pts:
+        origin = Vector((px, py, mx.z + lift))
+        hit, loc, nrm, idx, hobj, mw = scene.ray_cast(
+            deps, origin, Vector((0, 0, -1)), distance=mx.z - mn.z + lift + 5.0)
+        if hit and (best is None or loc.z > best):
+            best = loc.z
+
+    for o, v in prev.items():
+        o.hide_viewport = v
+    bpy.context.view_layer.update()
+
+    if best is None:
+        return None
+    obj.location.z += (best - mn.z)
+    bpy.context.view_layer.update()
+    return best
+
+
+def face_camera(obj, cam_xy=(7.2, -7.4)):
+    """Point an object roughly at the camera, so figurines don't show their backs."""
+    import math as _m
+    mn, mx = world_bbox(obj)
+    cx, cy = (mn.x + mx.x) / 2, (mn.y + mx.y) / 2
+    want = _m.degrees(_m.atan2(cam_xy[1] - cy, cam_xy[0] - cx)) - 90.0
+    obj.rotation_mode = 'XYZ'
+    obj.rotation_euler.z = _m.radians(want)
+    bpy.context.view_layer.update()
+    return want
