@@ -173,7 +173,7 @@ def place_assets():
         ("mouse-pad", "MousePad", 0.62, 'x', (1.42, 1.42, DTOP + 0.002)),
         ("custom-keyboard", "Keyboard", 0.36, 'x', (1.34, 1.44, DTOP + 0.004)),
         ("wirelesss-mouse", "Mouse", 0.11, 'y', (1.66, 1.43, DTOP + 0.004)),
-        ("gaming-computer-", "PC", 0.46, 'z', (0.82, 1.60, 0.0)),   # clear of Desk_SideL
+        ("gaming-computer-", "PC", 0.46, 'z', (1.84, 1.60, 0.0)),   # right end, clear of Desk_SideR
         ("headphone-stand-", "HeadphoneStand", 0.26, 'z', (0.56, 1.36, DTOP + 0.002)),
         ("headphones-rigge", "Headphones", 0.19, 'z', (0.56, 1.34, 0.86)),
     ):
@@ -226,7 +226,6 @@ def place_assets():
 
     for prefix, name, size, axis, rz, (x, y, z) in (
         ("plush-dog-toy-ak", "Shiba", 0.30, None, -25, (-1.52, 0.35, 0.59)),
-        ("stuffed-monkey-0", "Monkey", 0.26, None, 40, (-1.14, 0.82, 0.59)),
         ("garfield-slipper", "Slippers", 0.30, 'x', 15, (-0.72, -0.40, 0.00)),
         ("action-figure-le", "LeBron", 0.22, 'z', -150, (-0.68, 1.84, 1.95)),
         ("potatoman", "PotatoMan", 0.18, 'z', 160, (-0.36, 1.84, 1.95)),
@@ -820,14 +819,33 @@ def apply_wall_art_textures():
                      next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL').inputs["Surface"])
         return m
 
-    messi = image_mat("Poster_Messi", "messi.jpg", use_uv=True)
-    poster = O.get("Poster_Football") or O.get("Poster_Messi")
-    if messi and poster:
-        for c in descendants(poster):
-            if c.type == 'MESH' and c.data:
-                c.data.materials.clear()
-                c.data.materials.append(messi)
-        poster.name = "Poster_Messi"
+    # The asset painting is square; the chosen artwork is 1080x1920, so the
+    # square frame is dropped and a portrait one is built to match.
+    old = O.get("Poster_Football") or O.get("Poster_Messi")
+    if old:
+        for c in [old] + list(old.children_recursive):
+            if c.name in O:
+                bpy.data.objects.remove(O[c.name], do_unlink=True)
+        for coll in [c for c in bpy.data.collections
+                     if c.name.startswith(("Poster_Messi", "Poster_Football", "Painting"))]:
+            bpy.data.collections.remove(coll)
+
+    messi = image_mat("Poster_Messi_Mat", "messi-pin.jpg", use_uv=False, rough=0.52)
+    if messi:
+        W, H = 0.40, 0.711          # 9:16
+        CY, CZ, LEFT = 0.76, 1.62, -2.17
+        fr = material("Poster_Frame_Dark", 0x1E1A16, rough=0.45)
+        box("Poster_Messi_F", LEFT, LEFT + 0.022, CY - W/2 - 0.022, CY + W/2 + 0.022,
+            CZ - H/2 - 0.022, CZ + H/2 + 0.022, "Decor", material=fr)
+        poster = box("Poster_Messi", LEFT + 0.015, LEFT + 0.022, CY - W/2, CY + W/2,
+                     CZ - H/2, CZ + H/2, "Decor", material=messi)
+        hb = O.get("aboutmehitbox")
+        if hb:
+            mn, mx = world_bbox(poster)
+            PAD = 0.06
+            hb.location = ((mn.x+mx.x)/2, (mn.y+mx.y)/2, (mn.z+mx.z)/2)
+            hb.scale = (1, 1, 1)
+            hb.dimensions = (mx.x-mn.x+2*PAD, mx.y-mn.y+2*PAD, mx.z-mn.z+2*PAD)
 
     cover = image_mat("Vinyl_TalkToYou", "talk-to-you.jpg", use_uv=False, rough=0.7)
     sl = O.get("Vinyl_Sleeve")

@@ -112,11 +112,16 @@ In Three.js, play the clips with `THREE.LoopRepeat`.
 
 | File | Source | Licence |
 |---|---|---|
-| `public/textures/messi.jpg` | Wikimedia Commons, *Lionel-Messi-Argentina-2022-FIFA-World-Cup (cropped)* | **CC BY 4.0** — attribution required if published |
+| `public/textures/messi-pin.jpg` | Pinterest pin `11329436559819330` — an oil-painting style Messi artwork | **Unknown artist, copyrighted** — no licence identified |
 | `public/textures/talk-to-you.jpg` | iTunes artwork API, Ricky Montgomery *Talk to You* | **Copyrighted** — label-owned cover art |
 
-The album cover is fine locally, but it is not licensed for redistribution.
-Consider replacing it before the site goes public.
+Neither of these is licensed for redistribution. Both are fine while the
+project is local, but they should be replaced or cleared before the site is
+public — the Messi piece in particular is someone's original painting and
+the Pinterest pin does not credit them.
+
+The poster is 1080x1920, so the square asset frame is replaced by a built
+portrait frame at 9:16 rather than squashing the image.
 
 **UV gotcha:** the poster mesh carries a `(90, 0, 90)` rotation, and Generated
 texture coordinates are in *local* space — using them there smears the image
