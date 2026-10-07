@@ -79,6 +79,15 @@ In the browser, finish the look the way the reference does: a `#82ADED`
 overlay at 45% opacity in `mix-blend-mode: overlay`, plus bloom and gold
 `#FFDE85` hover outlines.
 
+## Desk layout
+
+Everything on the desk is placed to avoid collisions; the lamp, headphone
+stand, coffee cup and mousepad all overlapped at some point. Current zones:
+
+- **x 0.45–1.00** — lamp (back), headphones (front), coffee + steam, rubik's cube
+- **x 1.01–1.71** — monitor, white mousepad, keyboard, white mouse
+- **x 1.72–2.15** — hot wheels track with three die-cast cars, pencil, lego
+
 ## Animation
 
 The scene runs 1-240 frames and the GLB carries 8 animation clips.
@@ -101,11 +110,26 @@ In Three.js, play the clips with `THREE.LoopRepeat`.
 
 ## Wall art
 
-The football poster and the vinyl sleeve use **original procedural artwork**,
-not copyrighted images — stripes via a wave texture, a radial gradient for the
-sleeve. To use real artwork, drop the files in and swap the material's
-Base Color for an Image Texture node. Figma's `generate_image` can make
-original art but bills Figma AI credits, so it is not wired in.
+| File | Source | Licence |
+|---|---|---|
+| `public/textures/messi.jpg` | Wikimedia Commons, *Lionel-Messi-Argentina-2022-FIFA-World-Cup (cropped)* | **CC BY 4.0** — attribution required if published |
+| `public/textures/talk-to-you.jpg` | iTunes artwork API, Ricky Montgomery *Talk to You* | **Copyrighted** — label-owned cover art |
+
+The album cover is fine locally, but it is not licensed for redistribution.
+Consider replacing it before the site goes public.
+
+**UV gotcha:** the poster mesh carries a `(90, 0, 90)` rotation, and Generated
+texture coordinates are in *local* space — using them there smears the image
+into stripes. It must use the mesh's own UV map. The vinyl sleeve is an
+unrotated box, so Generated Y/Z works for it.
+
+## Flat-modelled wall assets
+
+Two assets ship lying flat with their display face on +Z: the wall painting
+and the floating-shelf unit. Mounting them needs Euler `(90, 0, 90)`, which
+sends +Z→+X (face the room), +Y→+Z (upright), +X→+Y (along the wall). Judging
+them by "which axis is thinnest" gets it wrong — the shelf unit reads as a
+horizontal shelf and ends up lying down like a table.
 
 ## Interaction naming
 

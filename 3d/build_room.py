@@ -155,7 +155,8 @@ def place_assets():
 
     bst = append_asset("bed-side-table", into="Furniture", rename="BedsideTable")
     fit(bst, 0.50, axis='x')
-    place(bst, x=-1.92, y=-0.18, z=0.0)
+    rot_z(bst, 90)
+    place(bst, x=-2.18, y=-0.30, z=0.0, anchor="bottom-minx")
 
     ca = append_asset("carpet", into="Decor", rename="Carpet")
     fit(ca, 2.20, axis='x')
@@ -169,12 +170,12 @@ def place_assets():
     # desk surface
     for prefix, name, size, axis, xyz in (
         ("samsung-odyssey-", "Monitor", 0.82, 'x', (1.30, 1.78, DTOP)),
-        ("mouse-pad", "MousePad", 0.62, 'x', (1.32, 1.42, DTOP + 0.002)),
-        ("custom-keyboard", "Keyboard", 0.36, 'x', (1.24, 1.44, DTOP + 0.004)),
-        ("wirelesss-mouse", "Mouse", 0.11, 'y', (1.56, 1.43, DTOP + 0.004)),
+        ("mouse-pad", "MousePad", 0.62, 'x', (1.42, 1.42, DTOP + 0.002)),
+        ("custom-keyboard", "Keyboard", 0.36, 'x', (1.34, 1.44, DTOP + 0.004)),
+        ("wirelesss-mouse", "Mouse", 0.11, 'y', (1.66, 1.43, DTOP + 0.004)),
         ("gaming-computer-", "PC", 0.46, 'z', (0.82, 1.60, 0.0)),   # clear of Desk_SideL
-        ("headphone-stand-", "HeadphoneStand", 0.26, 'z', (0.78, 1.78, DTOP + 0.002)),
-        ("headphones-rigge", "Headphones", 0.19, 'z', (0.78, 1.76, 0.86)),
+        ("headphone-stand-", "HeadphoneStand", 0.26, 'z', (0.56, 1.36, DTOP + 0.002)),
+        ("headphones-rigge", "Headphones", 0.19, 'z', (0.56, 1.34, 0.86)),
     ):
         o = append_asset(prefix, into="Desk", rename=name)
         fit(o, size, axis=axis)
@@ -194,9 +195,16 @@ def place_assets():
     fit(pt, 0.46)
     place(pt, x=LEFT_X, y=0.75, z=1.42, anchor="bottom-minx")
 
+    # modelled FLAT with its display face on +Z - it is a wall unit, not a shelf.
+    # (90,0,90) sends +Z->+X (face the room), +Y->+Z (upright), +X->+Y (along wall).
     fs = append_asset("floating-shelf-w", into="Decor", rename="FloatShelf")
-    fit(fs, 0.68, axis='y')
-    place(fs, x=LEFT_X, y=-0.25, z=1.28, anchor="bottom-minx")
+    fs.rotation_euler = (math.radians(90), 0, math.radians(90))
+    bpy.context.view_layer.update()
+    fit(fs, 0.78, axis='y')
+    place(fs, x=-2.19, y=-0.35, z=1.18, anchor="bottom-minx")
+    for c in list(descendants(fs)):          # drop the SUCCESS-cover books
+        if c.type == 'MESH' and any(m and m.name == 'paper' for m in c.data.materials):
+            bpy.data.objects.remove(c, do_unlink=True)
 
     gl = append_asset("photos-garland", into="Decor", rename="Garland")
     fit(gl, 1.30, axis='x')
@@ -257,11 +265,6 @@ def fill_cabinet_and_extras():
     rot_z(sc, 35)
     place(sc, x=0.70, y=1.38, z=DTOP)
 
-    # iMac on the side table: rotate BEFORE fitting, or the AABB inflates
-    im = append_asset("imac-computer", into="Decor", rename="iMac")
-    face_camera(im)
-    fit(im, 0.26)
-    place(im, x=-1.86, y=-1.35, z=0.49)
 
 
 def settle_props():
@@ -279,7 +282,7 @@ def settle_props():
 def build_extras():
     """Props not in the asset library: desk lamp, mug, two framed prints."""
     m_lamp = material("Lamp_Metal", 0x2E2E33, rough=0.35, metal=0.8)
-    LX, LY = 0.54, 1.84
+    LX, LY = 0.58, 1.84
     box("Lamp_Base", LX-0.07, LX+0.07, LY-0.07, LY+0.07, DTOP, DTOP+0.022, "Desk", material=m_lamp)
     box("Lamp_Stem", LX-0.011, LX+0.011, LY-0.011, LY+0.011, DTOP+0.022, 1.11, "Desk", material=m_lamp)
     box("Lamp_Arm", LX-0.011, LX+0.20, LY-0.011, LY+0.011, 1.088, 1.11, "Desk", material=m_lamp)
@@ -290,7 +293,7 @@ def build_extras():
     ld.energy, ld.color = 34.0, srgb(0xFFD4A6)[:3]
     ld.spot_size, ld.spot_blend, ld.shadow_soft_size = math.radians(95), 0.5, 0.06
     lo = bpy.data.objects.new("DeskLamp", ld)
-    lo.location = (0.74, 1.84, 0.985)     # spots already aim down -Z; do not flip
+    lo.location = (0.78, 1.84, 0.985)     # spots already aim down -Z; do not flip
     bpy.data.collections["Lighting"].objects.link(lo)
 
     bpy.ops.mesh.primitive_cylinder_add(radius=0.040, depth=0.095, vertices=24,
@@ -306,7 +309,6 @@ def build_extras():
     home = os.path.expanduser("~/main/PROJECTS/PORTFOLIO")
     for name, path, wall, pos, zc, w, h in (
         ("Poster_Home", f"{home}/Home screen.png", "back", 0.18, 1.52, 0.62, 0.40),
-        ("Poster_Me", f"{home}/portfolio-app/public/profile.jpg", "left", 1.35, 1.62, 0.34, 0.44),
     ):
         if not os.path.exists(path):
             print("poster image missing, skipping:", path)
@@ -522,7 +524,7 @@ def build_desk_toys():
                 bpy.data.objects.remove(O[o.name], do_unlink=True)
 
     if "RubikCube" in O:
-        place(O["RubikCube"], x=0.56, y=1.44, z=DTOP)
+        place(O["RubikCube"], x=0.80, y=1.60, z=DTOP)
 
     # --- hot wheels track: a bezier ring bevelled by a shallow U profile ---
     prof = bpy.data.curves.new("HW_Profile", 'CURVE')
@@ -562,7 +564,7 @@ def build_desk_toys():
     place(car, x=mx.x - 0.035, y=(mn.y + mx.y) / 2 - 0.02, z=mx.z)
 
     # --- coffee cup ---
-    CX, CY = 1.02, 1.33
+    CX, CY = 0.98, 1.33
     bpy.ops.mesh.primitive_cylinder_add(radius=0.042, depth=0.085, vertices=32,
                                         location=(CX, CY, DTOP + 0.0425))
     cup = bpy.context.active_object
@@ -778,6 +780,135 @@ def fill_shelf_books():
         place(O["Sparrow"], x=-0.62, y=CY, z=0.276)
 
 
+
+def apply_wall_art_textures():
+    """Real artwork: Messi (CC BY 4.0, Wikimedia) and the Talk To You cover.
+
+    The poster mesh carries a (90,0,90) rotation, so Generated coords are NOT
+    the wall plane there - it must use the mesh's own UV map. The vinyl sleeve
+    is an unrotated box, so Generated Y/Z works for it.
+    """
+    O = bpy.data.objects
+    tex_dir = os.path.join(REPO, "public", "textures")
+
+    def image_mat(name, filename, use_uv, rough=0.55):
+        path = os.path.join(tex_dir, filename)
+        if not os.path.exists(path):
+            print("texture missing, skipping:", path)
+            return None
+        img = bpy.data.images.load(path, check_existing=True)
+        m = bpy.data.materials.new(name)
+        m.use_nodes = True
+        nt = m.node_tree
+        for n in list(nt.nodes):
+            if n.type != 'OUTPUT_MATERIAL':
+                nt.nodes.remove(n)
+        bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+        bsdf.inputs["Roughness"].default_value = rough
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image, tex.extension = img, 'EXTEND'
+        if not use_uv:
+            coord = nt.nodes.new("ShaderNodeTexCoord")
+            sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+            comb = nt.nodes.new("ShaderNodeCombineXYZ")
+            nt.links.new(coord.outputs["Generated"], sep.inputs["Vector"])
+            nt.links.new(sep.outputs["Y"], comb.inputs["X"])
+            nt.links.new(sep.outputs["Z"], comb.inputs["Y"])
+            nt.links.new(comb.outputs["Vector"], tex.inputs["Vector"])
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+        nt.links.new(bsdf.outputs["BSDF"],
+                     next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL').inputs["Surface"])
+        return m
+
+    messi = image_mat("Poster_Messi", "messi.jpg", use_uv=True)
+    poster = O.get("Poster_Football") or O.get("Poster_Messi")
+    if messi and poster:
+        for c in descendants(poster):
+            if c.type == 'MESH' and c.data:
+                c.data.materials.clear()
+                c.data.materials.append(messi)
+        poster.name = "Poster_Messi"
+
+    cover = image_mat("Vinyl_TalkToYou", "talk-to-you.jpg", use_uv=False, rough=0.7)
+    sl = O.get("Vinyl_Sleeve")
+    if cover and sl:
+        sl.data.materials.clear()
+        sl.data.materials.append(cover)
+
+
+def whiten_peripherals():
+    """White mousepad, white mouse, white PC case."""
+    O = bpy.data.objects
+
+    def whiten(root, name, base, rough):
+        if not root:
+            return
+        wm = bpy.data.materials.get(name) or bpy.data.materials.new(name)
+        wm.use_nodes = True
+        b = next(n for n in wm.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+        b.inputs["Base Color"].default_value = srgb(base)
+        b.inputs["Roughness"].default_value = rough
+        b.inputs["Metallic"].default_value = 0.0
+        for c in descendants(root):
+            if c.type == 'MESH' and c.data:
+                c.data.materials.clear()
+                c.data.materials.append(wm)
+
+    whiten(O.get("MousePad"), "MousePad_White", 0xEFEFEC, 0.72)
+    whiten(O.get("Mouse"), "Mouse_White", 0xF6F6F4, 0.35)
+    whiten(O.get("PC"), "PC_White", 0xF2F2F0, 0.30)
+
+
+def make_car(name, body_hex, loc, rot_deg):
+    """A small die-cast car: bevelled body, nose, glass cabin, spoiler, 4 wheels."""
+    parts = []
+    RUBBER = material("HW_Rubber", 0x141416, rough=0.75)
+    GLASS = material("HW_Glass", 0x3A4A58, rough=0.12, metal=0.4)
+    RIM = material("HW_Rim", 0xC9CBD0, rough=0.25, metal=0.9)
+    BODY = material(f"{name}_Paint", body_hex, rough=0.18, metal=0.55)
+
+    def cube(nm, sx, sy, sz, off, mt, bevel=0.004):
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0))
+        o = bpy.context.active_object
+        o.name, o.scale = nm, (sx, sy, sz)
+        bpy.ops.object.transform_apply(scale=True)
+        o.location = off
+        m = o.modifiers.new("Bev", 'BEVEL')
+        m.width, m.segments = bevel, 2
+        o.data.materials.append(mt)
+        parts.append(o)
+
+    cube(f"{name}_body", 0.068, 0.030, 0.011, (0, 0, 0.011), BODY)
+    cube(f"{name}_nose", 0.022, 0.026, 0.007, (0.026, 0, 0.0055), BODY, 0.003)
+    cube(f"{name}_cabin", 0.030, 0.025, 0.011, (-0.006, 0, 0.0215), GLASS)
+    cube(f"{name}_spoil", 0.008, 0.028, 0.004, (-0.032, 0, 0.022), BODY, 0.002)
+    for sx in (0.021, -0.021):
+        for sy in (0.0165, -0.0165):
+            for rad, dep, mt, nm in ((0.0085, 0.007, RUBBER, "wheel"),
+                                     (0.0045, 0.0076, RIM, "rim")):
+                bpy.ops.mesh.primitive_cylinder_add(
+                    radius=rad, depth=dep, vertices=16, location=(sx, sy, 0.0085),
+                    rotation=(math.radians(90), 0, 0))
+                o = bpy.context.active_object
+                o.name = f"{name}_{nm}"
+                o.data.materials.append(mt)
+                bpy.ops.object.shade_smooth()
+                parts.append(o)
+
+    root = bpy.data.objects.new(name, None)
+    bpy.data.collections["Desk"].objects.link(root)
+    for p in parts:
+        for c in list(p.users_collection):
+            c.objects.unlink(p)
+        bpy.data.collections["Desk"].objects.link(p)
+        p.parent = root
+        p.matrix_parent_inverse = root.matrix_world.inverted()
+    root.rotation_euler = (0, 0, math.radians(rot_deg))
+    bpy.context.view_layer.update()
+    place(root, x=loc[0], y=loc[1], z=loc[2])
+    return root
+
+
 def main():
     clear_scene()
     build_shell()
@@ -790,6 +921,8 @@ def main():
     build_extras()
     build_desk_toys()
     build_wall_art()
+    apply_wall_art_textures()
+    whiten_peripherals()
     fill_shelf_books()
     build_panda()
     settle_props()
