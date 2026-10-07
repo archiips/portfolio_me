@@ -148,8 +148,8 @@ export default function PhotoStack({ isOpen, onClose }: PhotoStackProps) {
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft") paginate(1);
-      if (e.key === "ArrowRight") paginate(-1);
+      if (e.key === "ArrowRight") paginate(1);
+      if (e.key === "ArrowLeft") paginate(-1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -171,11 +171,11 @@ export default function PhotoStack({ isOpen, onClose }: PhotoStackProps) {
         </div>
 
         <div className="flex items-center gap-6 text-[#E9DFD0]">
-          <button aria-label="Next photo" onClick={() => paginate(1)} className="rounded-full p-2 hover:text-[#FFDE85]">
+          <button aria-label="Previous photo" onClick={() => paginate(-1)} className="rounded-full p-2 outline-none hover:text-[#FFDE85] focus-visible:ring-2 focus-visible:ring-[#FFDE85]/60">
             <ChevronLeft className="h-7 w-7" />
           </button>
           <span className="w-16 text-center text-sm opacity-80">{label(index)}</span>
-          <button aria-label="Previous photo" onClick={() => paginate(-1)} className="rounded-full p-2 hover:text-[#FFDE85]">
+          <button aria-label="Next photo" onClick={() => paginate(1)} className="rounded-full p-2 outline-none hover:text-[#FFDE85] focus-visible:ring-2 focus-visible:ring-[#FFDE85]/60">
             <ChevronRight className="h-7 w-7" />
           </button>
         </div>
