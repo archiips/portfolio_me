@@ -12,7 +12,7 @@ BlenderKit asset library.
 | `build_room.py` | Rebuilds the entire room from scratch, headless or over MCP |
 | `room-preview.png` | Reference render of the current state |
 | `settle()` in roomlib | Raycasts a prop down onto the surface actually beneath it |
-| `face_camera()` in roomlib | Turns figurines toward the camera instead of the wall |
+| `face_camera()` in roomlib | Turns figurines toward the camera — takes `model_forward_deg` |
 | `../public/models/room.glb` | Web export (Draco + 512px textures), ~11 MB |
 
 The master `room.blend` is **not** in git — it is ~160 MB, above GitHub's
@@ -87,6 +87,21 @@ stand, coffee cup and mousepad all overlapped at some point. Current zones:
 - **x 0.45–1.00** — lamp (back), headphones (front), coffee + steam, rubik's cube
 - **x 1.01–1.71** — monitor, white mousepad, keyboard, white mouse
 - **x 1.72–2.15** — hot wheels track with three die-cast cars, pencil, lego
+
+## Model rest headings
+
+`face_camera()` originally assumed every model rests facing +Y. That is not
+true, and it left figurines staring at the wall. The rest heading must be
+measured per asset from the `angles` views and passed as `model_forward_deg`
+(0 = +X, 90 = +Y):
+
+| Asset | Rest heading |
+|---|---|
+| LeBron figure | 230° |
+| PotatoMan | 141° |
+| Gaming PC case | front is +X — identified by the intake fans sitting on that face |
+
+The PC is rotated −90° so its front faces the chair at −Y.
 
 ## Wall spacing
 

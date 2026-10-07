@@ -173,13 +173,21 @@ def place_assets():
         ("mouse-pad", "MousePad", 0.62, 'x', (1.42, 1.42, DTOP + 0.002)),
         ("custom-keyboard", "Keyboard", 0.36, 'x', (1.34, 1.44, DTOP + 0.004)),
         ("wirelesss-mouse", "Mouse", 0.11, 'y', (1.66, 1.43, DTOP + 0.004)),
-        ("gaming-computer-", "PC", 0.46, 'z', (1.84, 1.60, 0.0)),   # right end, clear of Desk_SideR
+        ("gaming-computer-", "PC", 0.46, 'z', (1.95, 1.70, 0.0)),   # right end, under the desk
         ("headphone-stand-", "HeadphoneStand", 0.26, 'z', (0.56, 1.36, DTOP + 0.002)),
         ("headphones-rigge", "Headphones", 0.19, 'z', (0.56, 1.34, 0.86)),
     ):
         o = append_asset(prefix, into="Desk", rename=name)
         fit(o, size, axis=axis)
         place(o, x=xyz[0], y=xyz[1], z=xyz[2])
+
+    # the case's intake fans sit on +X, so +X is its front; the chair is at -Y
+    pc = bpy.data.objects.get("PC")
+    if pc:
+        pc.rotation_mode = 'XYZ'
+        pc.rotation_euler.z = math.radians(-90)
+        bpy.context.view_layer.update()
+        place(pc, x=1.95, y=1.70, z=0.0)
 
     sc = append_asset("display-shelf-ca", into="Furniture", rename="ShelfCabinet")
     fit(sc, 1.95, axis='z')
@@ -217,7 +225,8 @@ def place_assets():
 
     su = append_asset("succulent-plant", into="Decor", rename="Succulent")
     fit(su, 0.17)
-    place(su, x=-1.95, y=-0.16, z=0.40)
+    place(su, x=-2.02, y=-0.44, z=0.40)
+    settle(su, lift=0.06)          # the top is a recessed tray, not a flat slab
 
     bk = append_asset("books", into="Decor", rename="Books")
     fit(bk, 0.26)
@@ -235,7 +244,7 @@ def place_assets():
         ("lego-mini-figure", "Lego", 0.10, 'z', -165, (1.86, 1.56, DTOP + 0.002)),
         ("pencil-cup", "PencilCup", 0.13, 'z', 10, (1.97, 1.78, DTOP)),
         ("graphite-pencil", "Pencil", 0.17, None, 75, (1.78, 1.33, DTOP + 0.002)),
-        ("eyeglass", "Glasses", 0.13, 'x', -35, (-1.77, -0.28, 0.40)),
+        ("eyeglass", "Glasses", 0.13, 'x', -35, (-2.02, -0.17, 0.40)),
     ):
         o = append_asset(prefix, into="Decor", rename=name)
         fit(o, size, axis=axis)
@@ -273,9 +282,11 @@ def settle_props():
                  "Lego", "Pencil", "Glasses", "Succulent", "Slippers"):
         if name in O:
             settle(O[name], lift=0.25)
-    for name in ("LeBron", "PotatoMan"):
-        if name in O:
-            face_camera(O[name])
+    # these two do not rest facing +Y; measured headings from the angle views
+    for name, fwd in (("LeBron", 230.0), ("PotatoMan", 141.0)):
+        o = O.get(name)
+        if o:
+            face_camera(o, model_forward_deg=fwd)
 
 
 def build_extras():

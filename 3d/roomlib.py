@@ -172,13 +172,20 @@ def settle(obj, lift=0.6, samples=5):
     return best
 
 
-def face_camera(obj, cam_xy=(7.2, -7.4)):
-    """Point an object roughly at the camera, so figurines don't show their backs."""
+def face_camera(obj, cam_xy=(7.2, -7.4), model_forward_deg=90.0):
+    """Rotate obj so its own forward axis points at the camera.
+
+    model_forward_deg is the compass angle the model faces at rotation 0
+    (0 = +X, 90 = +Y). It is NOT the same for every asset - assuming +Y for
+    all of them is what left LeBron and PotatoMan facing the wall. Measure it
+    once from the `angles` views, then pass it here. Known values:
+        LeBron 230, PotatoMan 141.
+    """
     import math as _m
     mn, mx = world_bbox(obj)
     cx, cy = (mn.x + mx.x) / 2, (mn.y + mx.y) / 2
-    want = _m.degrees(_m.atan2(cam_xy[1] - cy, cam_xy[0] - cx)) - 90.0
+    target = _m.degrees(_m.atan2(cam_xy[1] - cy, cam_xy[0] - cx))
     obj.rotation_mode = 'XYZ'
-    obj.rotation_euler.z = _m.radians(want)
+    obj.rotation_euler.z = _m.radians(target - model_forward_deg)
     bpy.context.view_layer.update()
-    return want
+    return target
