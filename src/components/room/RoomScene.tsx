@@ -103,9 +103,11 @@ function MirrorFloor() {
 
 interface RoomSceneProps {
   onSelect: (s: Section) => void;
+  /** An overlay is open: stop rendering and blur the frozen frame. */
+  paused?: boolean;
 }
 
-export default function RoomScene({ onSelect }: RoomSceneProps) {
+export default function RoomScene({ onSelect, paused = false }: RoomSceneProps) {
   const [hovered, setHovered] = useState<Section | null>(null);
   const controls = useRef<OrbitControlsImpl>(null);
   const [mobile, setMobile] = useState(false);
@@ -120,16 +122,23 @@ export default function RoomScene({ onSelect }: RoomSceneProps) {
   return (
     <div className="fixed inset-0" style={{ background: BG }}>
       <Canvas
+        // Frozen while an overlay is open, so the overlay's animation has the
+        // GPU to itself and the blur below is applied to a still image.
+        frameloop={paused ? "never" : "always"}
+        gl={{ antialias: true, preserveDrawingBuffer: true }}
         dpr={[1, 1.5]}
         camera={{ position: CAM_START.toArray(), fov: 40, near: 0.1, far: 120 }}
-        gl={{ antialias: true }}
         onCreated={({ gl, scene }) => {
           // Same view transform the Blender scene is graded in (AgX, -0.3 EV).
           gl.toneMapping = THREE.AgXToneMapping;
           gl.toneMappingExposure = 0.85;
           scene.background = new THREE.Color(BG);
         }}
-        style={{ cursor: hovered ? "pointer" : "default" }}
+        style={{
+          cursor: hovered ? "pointer" : "default",
+          filter: paused ? "blur(7px) brightness(0.75)" : "none",
+          transition: "filter 350ms ease-out",
+        }}
       >
         {/* Nearly everything is lit by its baked textures. These only shape
             the panda and the steam, which are animated and so not baked. */}

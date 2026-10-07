@@ -1,178 +1,228 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { ChevronLeft, ExternalLink, Github } from "lucide-react";
+import { AnimatePresence, LayoutGroup, motion } from "motion/react";
+import { ExternalLink, Github, Undo2 } from "lucide-react";
 import { projects, type Project } from "@/lib/projects";
 import Overlay from "./Overlay";
+import { EASE_OUT, enter, leave } from "./motion";
 
-// A colour per project for the card peeking out of its folder.
-const PALETTE = ["#7FA7C9", "#C98F7F", "#8DB58A", "#C9B27F", "#A58FC9", "#7FC9BE", "#C97FA2", "#9AA0A8"];
+// Projects as records in a crate, a nod to the Talk To You vinyl on the wall.
+// Flip through the sleeves, pull one out and the record slides out and spins
+// next to its liner notes (description and a "tracklist" of the stack).
+
+const ART: [string, string, string][] = [
+  ["#E7B46A", "#B4572E", "#2C1D16"],
+  ["#8FB8C9", "#3D5A80", "#F4E9D8"],
+  ["#C7D59F", "#5C7A3A", "#20281A"],
+  ["#E9A6A6", "#8C3B4A", "#FCEFE6"],
+  ["#B9A7D9", "#4E3D7A", "#F3EEFA"],
+  ["#F2D27A", "#2F6F6A", "#13201F"],
+  ["#D9C2A7", "#6B4F3A", "#FFF6EA"],
+  ["#9EC9B6", "#2E4F5C", "#EAF4EF"],
+];
 
 function shortTitle(t: string) {
   return t.replace(/ (System|Platform|Engine|Tool|Agent)$/, "");
 }
 
-function Folder({ p, i, onOpen }: { p: Project; i: number; onOpen: () => void }) {
+// Generated cover art: a gradient, a sun/disc and a few stripes, varied per
+// project so every sleeve in the crate is distinct.
+function Sleeve({ p, i, big = false }: { p: Project; i: number; big?: boolean }) {
+  const [a, b, ink] = ART[i % ART.length];
+  const cx = 30 + ((i * 37) % 45);
+  const cy = 26 + ((i * 23) % 35);
   return (
-    <motion.button
-      onClick={onOpen}
-      className="group flex flex-col items-center gap-2 text-center outline-none"
-      initial={{ opacity: 0, y: 24, scale: 0.9 }}
-      animate={{ opacity: 1, y: 0, scale: 1, transition: { delay: 0.55 + i * 0.05, type: "spring", stiffness: 260, damping: 20 } }}
-      whileHover="hover"
-      whileTap={{ scale: 0.95 }}
+    <div
+      className="relative h-full w-full overflow-hidden rounded-[3px] shadow-[0_10px_24px_rgba(0,0,0,0.45)]"
+      style={{ background: `linear-gradient(${120 + i * 25}deg, ${a}, ${b})` }}
     >
-      <div className="relative h-24 w-32 sm:h-28 sm:w-36">
-        {/* back of the folder and its tab */}
-        <div className="absolute left-0 top-0 h-5 w-14 rounded-t-md bg-[#D2B871]" />
-        <div className="absolute inset-x-0 bottom-0 top-3 rounded-md bg-[#D9BF78]" />
-        {/* the project card, which slides up out of the folder on hover */}
-        <motion.div
-          className="absolute inset-x-4 top-4 h-16 rounded-sm p-1.5 text-left shadow"
-          style={{ background: PALETTE[i % PALETTE.length] }}
-          variants={{ hover: { y: -16, rotate: -3 } }}
-          transition={{ type: "spring", stiffness: 300, damping: 18 }}
-        >
-          <div className="h-1.5 w-10 rounded-full bg-white/70" />
-          <div className="mt-1 h-1 w-14 rounded-full bg-white/45" />
-          <div className="mt-1 h-1 w-8 rounded-full bg-white/45" />
-        </motion.div>
-        {/* front flap tips open a little on hover */}
-        <motion.div
-          className="absolute inset-x-0 bottom-0 h-[72%] origin-bottom rounded-md bg-[#F4D98F] shadow-[0_-2px_6px_rgba(0,0,0,0.12)]"
-          variants={{ hover: { rotateX: 18 } }}
-          style={{ transformPerspective: 400 }}
-        />
-      </div>
-      <span className="max-w-36 text-[15px] leading-tight text-[#EDE6DA] group-hover:text-[#FFDE85]">
+      <div
+        className="absolute rounded-full"
+        style={{
+          width: "46%",
+          height: "46%",
+          left: `${cx - 23}%`,
+          top: `${cy - 23}%`,
+          background: ink,
+          opacity: 0.85,
+        }}
+      />
+      <div
+        className="absolute inset-x-0 bottom-[22%] h-[18%]"
+        style={{
+          background: `repeating-linear-gradient(0deg, ${ink}55 0 3px, transparent 3px 9px)`,
+        }}
+      />
+      <p
+        className={`absolute left-[7%] top-[6%] uppercase tracking-[0.2em] ${big ? "text-[11px]" : "text-[8px]"}`}
+        style={{ color: ink }}
+      >
+        archit jaiswal
+      </p>
+      {/* title on a paper sticker so it reads over any cover art */}
+      <p
+        className={`absolute left-[6%] top-[15%] max-w-[88%] rounded-sm bg-[#F7F1E4] px-1.5 py-0.5 font-semibold leading-tight text-[#2b211b] shadow-sm ${big ? "text-lg" : "text-[11px]"}`}
+      >
         {shortTitle(p.title)}
-      </span>
-    </motion.button>
+      </p>
+    </div>
   );
 }
 
-function Detail({ p, onBack }: { p: Project; onBack: () => void }) {
+function Record({ i, title }: { i: number; title: string }) {
+  const [a] = ART[i % ART.length];
   return (
     <motion.div
-      key={p.id}
-      className="h-full overflow-y-auto p-6 text-[#E9E3D8] sm:p-8"
-      initial={{ opacity: 0, scale: 0.94, y: 12 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.96 }}
-      transition={{ type: "spring", stiffness: 260, damping: 24 }}
+      className="relative h-full w-full rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
+      style={{
+        background:
+          "radial-gradient(circle, #1a1a1a 0 18%, transparent 18%), repeating-radial-gradient(circle, #151515 0 2px, #222 2px 4px)",
+      }}
+      animate={{ rotate: 360 }}
+      transition={{ repeat: Infinity, duration: 3.2, ease: "linear" }}
     >
-      <button onClick={onBack} className="mb-4 flex items-center gap-1 text-sm text-[#C9BFAF] hover:text-[#FFDE85]">
-        <ChevronLeft className="h-4 w-4" /> back
-      </button>
-      <h3 className="text-2xl font-semibold">{p.title}</h3>
-      <p className="mt-3 max-w-2xl leading-relaxed text-[#CFC7BA]">{p.description}</p>
-      <div className="mt-5 flex flex-wrap gap-2">
-        {p.technologies.map((t, i) => (
-          <motion.span
-            key={t}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0, transition: { delay: 0.1 + i * 0.03 } }}
-            className="rounded-full bg-white/10 px-3 py-1 text-sm text-[#E9E3D8]"
-          >
-            {t}
-          </motion.span>
-        ))}
+      <div
+        className="absolute left-1/2 top-1/2 flex h-[34%] w-[34%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-center text-[9px] leading-tight text-[#2b211b]"
+        style={{ background: a }}
+      >
+        <span className="px-2">{shortTitle(title)}</span>
+        <div className="absolute h-2 w-2 rounded-full bg-[#111]" />
       </div>
-      <div className="mt-6 flex gap-3">
-        {p.githubUrl && (
-          <a href={p.githubUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 hover:bg-white/20">
-            <Github className="h-4 w-4" /> Code
-          </a>
-        )}
-        {p.liveUrl && (
-          <a href={p.liveUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg bg-[#F4D98F] px-4 py-2 text-[#3b3129] hover:bg-[#FFDE85]">
-            <ExternalLink className="h-4 w-4" /> Live
-          </a>
-        )}
+      <div className="absolute inset-0 rounded-full bg-[conic-gradient(from_30deg,transparent_0_20%,rgba(255,255,255,0.08)_25%,transparent_30%_70%,rgba(255,255,255,0.06)_75%,transparent_80%)]" />
+    </motion.div>
+  );
+}
+
+function Crate({ onPick }: { onPick: (i: number) => void }) {
+  return (
+    <motion.div
+      key="crate"
+      className="relative mx-auto w-[min(94vw,900px)] pt-16"
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0, transition: enter(0, 0.5) }}
+      exit={{ opacity: 0, y: 20, transition: leave() }}
+    >
+      <p className="mb-3 text-center text-[#E9DFD0]/80 [font-family:var(--font-sniglet)]">
+        my-projects · {projects.length} records, pick one out
+      </p>
+      <div className="relative h-[clamp(150px,22vw,230px)]">
+        {/* the records, standing in the crate */}
+        <div className="absolute inset-x-[2%] bottom-0 flex items-end justify-center">
+          {projects.map((p, i) => (
+            <motion.button
+              key={p.id}
+              layoutId={`sleeve-${p.id}`}
+              onClick={() => onPick(i)}
+              aria-label={`Open ${p.title}`}
+              className="relative -mx-[clamp(14px,2.2vw,28px)] aspect-square w-[clamp(110px,17vw,190px)] shrink-0 outline-none"
+              style={{ zIndex: i }}
+              initial={{ y: -60, opacity: 0 }}
+              animate={{ y: 18, opacity: 1, rotate: (i - 3.5) * 1.2, transition: enter(0.12 + i * 0.045, 0.5) }}
+              whileHover={{ y: -42, rotate: 0, transition: { duration: 0.25, ease: EASE_OUT } }}
+            >
+              <Sleeve p={p} i={i} />
+            </motion.button>
+          ))}
+        </div>
+        {/* front of the crate, in front of the bottom of the sleeves */}
+        <div
+          className="pointer-events-none absolute -inset-x-[3%] -bottom-6 z-20 h-[34%] rounded-md shadow-[0_-6px_20px_rgba(0,0,0,0.35)]"
+          style={{
+            background:
+              "repeating-linear-gradient(0deg, #8a6446 0 22%, #6e4d34 22% 25%), linear-gradient(#8a6446, #6e4d34)",
+          }}
+        >
+          <div className="absolute left-1/2 top-[28%] h-[30%] w-[22%] -translate-x-1/2 rounded-full bg-[#3a281c]/70" />
+        </div>
       </div>
     </motion.div>
   );
 }
 
-// The room's monitor, blown up: it rises and powers on, then shows a file
-// browser with a folder per project. Opening one shows it inside the window.
+function Detail({ i, onBack }: { i: number; onBack: () => void }) {
+  const p = projects[i];
+  return (
+    <motion.div
+      key="detail"
+      className="mx-auto flex w-[min(94vw,980px)] flex-col items-center gap-8 md:flex-row md:items-start"
+      exit={{ opacity: 0, transition: leave() }}
+    >
+      <div className="relative aspect-square w-[min(70vw,320px)] shrink-0">
+        {/* the record slides out from behind the sleeve, then keeps spinning */}
+        <motion.div
+          className="absolute inset-[4%]"
+          initial={{ x: 0 }}
+          animate={{ x: "38%", transition: enter(0.35, 0.7) }}
+        >
+          <Record i={i} title={p.title} />
+        </motion.div>
+        <motion.div layoutId={`sleeve-${p.id}`} className="absolute inset-0 z-10" transition={{ duration: 0.5, ease: EASE_OUT }}>
+          <Sleeve p={p} i={i} big />
+        </motion.div>
+      </div>
+
+      {/* liner notes */}
+      <motion.div
+        className="max-w-lg rounded-md bg-[#F4ECDD] p-6 text-[#3b3129] shadow-xl md:ml-24"
+        initial={{ opacity: 0, x: 30 }}
+        animate={{ opacity: 1, x: 0, transition: enter(0.3) }}
+      >
+        <p className="text-xs uppercase tracking-[0.25em] text-[#8a7766]">side a · liner notes</p>
+        <h3 className="mt-1 text-2xl font-bold">{p.title}</h3>
+        <p className="mt-3 text-[15px] leading-relaxed text-[#4f443b]">{p.description}</p>
+        <p className="mt-5 text-xs uppercase tracking-[0.25em] text-[#8a7766]">tracklist</p>
+        <ol className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-[14px]">
+          {p.technologies.map((t, k) => (
+            <motion.li
+              key={t}
+              className="flex gap-2"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0, transition: enter(0.45 + k * 0.04, 0.4) }}
+            >
+              <span className="w-6 text-[#8a7766]">A{k + 1}</span>
+              {t}
+            </motion.li>
+          ))}
+        </ol>
+        <div className="mt-6 flex flex-wrap gap-3">
+          {p.githubUrl && (
+            <a href={p.githubUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-full bg-[#3b3129] px-4 py-2 text-sm text-[#F4ECDD] hover:bg-[#5a4a3d]">
+              <Github className="h-4 w-4" /> Code
+            </a>
+          )}
+          {p.liveUrl && (
+            <a href={p.liveUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-full bg-[#E7B46A] px-4 py-2 text-sm text-[#2b211b] hover:bg-[#FFDE85]">
+              <ExternalLink className="h-4 w-4" /> Listen live
+            </a>
+          )}
+          <button onClick={onBack} className="ml-auto flex items-center gap-2 rounded-full px-3 py-2 text-sm text-[#6b5b4d] hover:text-[#3b3129]">
+            <Undo2 className="h-4 w-4" /> back in the crate
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export default function ProjectsOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [current, setCurrent] = useState<Project | null>(null);
+  const [current, setCurrent] = useState<number | null>(null);
   const close = () => {
     onClose();
-    setTimeout(() => setCurrent(null), 400);
+    setTimeout(() => setCurrent(null), 350);
   };
 
   return (
     <Overlay open={open} onClose={close}>
-      <motion.div
-        className="flex flex-col items-center"
-        initial={{ y: 80, scale: 0.7, opacity: 0 }}
-        animate={{ y: 0, scale: 1, opacity: 1, transition: { type: "spring", stiffness: 120, damping: 17 } }}
-        exit={{ y: 60, scale: 0.8, opacity: 0, transition: { duration: 0.3, ease: "easeIn" } }}
-      >
-        {/* bezel */}
-        <div className="rounded-[22px] border border-[#E9C9A5]/60 bg-[#1b1916] p-3 shadow-[0_30px_80px_rgba(0,0,0,0.6)] sm:p-5">
-          {/* screen powers on: a brief bright flash that settles */}
-          <motion.div
-            className="relative flex h-[min(64vh,560px)] w-[min(90vw,920px)] flex-col overflow-hidden rounded-xl bg-[#2a2826]"
-            initial={{ filter: "brightness(0)" }}
-            animate={{ filter: ["brightness(0)", "brightness(1.6)", "brightness(1)"], transition: { duration: 0.7, delay: 0.25, times: [0, 0.4, 1] } }}
-          >
-            <div className="flex min-h-0 flex-1">
-              {/* sidebar */}
-              <div className="hidden w-48 shrink-0 flex-col gap-2 bg-[#3a3734] p-4 sm:flex">
-                <p className="mb-1 text-xs uppercase tracking-wider text-[#9b9288]">Favourites</p>
-                {["Desktop", "my-projects", "Downloads"].map((n) => (
-                  <div key={n} className={`rounded-md px-3 py-1.5 text-sm ${n === "my-projects" ? "bg-white/10 text-[#EDE6DA]" : "text-[#B9B0A5]"}`}>
-                    {n}
-                  </div>
-                ))}
-                <p className="mb-1 mt-4 text-xs uppercase tracking-wider text-[#9b9288]">Links</p>
-                <a href="https://github.com/archiips" target="_blank" rel="noreferrer" className="rounded-md px-3 py-1.5 text-sm text-[#B9B0A5] hover:bg-white/10">
-                  GitHub
-                </a>
-              </div>
-
-              <div className="flex min-w-0 flex-1 flex-col">
-                {/* path bar */}
-                <div className="m-3 rounded-md bg-[#3a3734] px-4 py-2 text-[15px] text-[#EDE6DA]">
-                  <button onClick={() => setCurrent(null)} className="hover:text-[#FFDE85]">desktop &gt; my-projects</button>
-                  {current && <span> &gt; {shortTitle(current.title)}</span>}
-                </div>
-                <div className="relative min-h-0 flex-1">
-                  <AnimatePresence mode="wait">
-                    {current ? (
-                      <Detail key="detail" p={current} onBack={() => setCurrent(null)} />
-                    ) : (
-                      <motion.div
-                        key="grid"
-                        className="grid h-full grid-cols-2 content-start gap-x-6 gap-y-7 overflow-y-auto p-6 sm:grid-cols-3 lg:grid-cols-4"
-                        exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.15 } }}
-                      >
-                        {projects.map((p, i) => (
-                          <Folder key={p.id} p={p} i={i} onOpen={() => setCurrent(p)} />
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-            </div>
-            {/* dock */}
-            <div className="flex h-12 items-center gap-2 bg-[#BDB4A7] px-5">
-              <div className="h-6 w-40 rounded-full bg-[#DCD5CB]" />
-              {[0, 1, 2, 3].map((k) => (
-                <div key={k} className={`h-7 w-7 bg-[#DCD5CB] ${k % 2 ? "rounded-md" : "rounded-full"}`} />
-              ))}
-            </div>
-          </motion.div>
-        </div>
-        {/* stand */}
-        <div className="h-10 w-40 bg-gradient-to-b from-[#4e4b43] to-[#5f5c53]" style={{ clipPath: "polygon(12% 0, 88% 0, 100% 100%, 0 100%)" }} />
-        <div className="h-4 w-72 rounded-t-3xl bg-[#5f5c53]" />
-      </motion.div>
+      <LayoutGroup>
+        <AnimatePresence mode="popLayout">
+          {current === null ? (
+            <Crate key="crate" onPick={setCurrent} />
+          ) : (
+            <Detail key="detail" i={current} onBack={() => setCurrent(null)} />
+          )}
+        </AnimatePresence>
+      </LayoutGroup>
     </Overlay>
   );
 }

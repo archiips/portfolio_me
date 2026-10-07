@@ -35,7 +35,7 @@ export default function RoomPage() {
 
   return (
     <main className="h-screen w-screen overflow-hidden bg-[#1f1b16]">
-      <RoomScene onSelect={setOpen} />
+      <RoomScene onSelect={setOpen} paused={open !== null} />
       <AboutOverlay open={open === "aboutme"} onClose={close} />
       <ProjectsOverlay open={open === "projects"} onClose={close} />
       <WorkOverlay open={open === "work"} onClose={close} />
