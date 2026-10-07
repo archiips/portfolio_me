@@ -92,6 +92,7 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
   const [mobile, setMobile] = useState(false);
   const [keysUsed, setKeysUsed] = useState(false);
   const markKeysUsed = useCallback(() => setKeysUsed(true), []);
+  const [shiftLock, setShiftLock] = useState(false);
 
   useEffect(() => {
     const check = () => setMobile(window.innerWidth / window.innerHeight < 0.9);
@@ -144,7 +145,7 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
           {/* Compile every shader and upload every texture as soon as the
               model arrives (during the boot screen), not on first view. */}
           <Preload all />
-          <KeyboardControls controls={controls} enabled={started && !paused} onUsed={markKeysUsed} />
+          <KeyboardControls controls={controls} enabled={started && !paused} onUsed={markKeysUsed} onShiftLock={setShiftLock} />
         </Suspense>
 
         <OrbitControls
@@ -169,18 +170,37 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
 
       <ContactBar />
 
-      {/* keyboard hint, gone once the keys have been used */}
+      {/* controls hint; dims once the keys have been used, stays readable */}
       <div
-        className="pointer-events-none fixed bottom-5 left-5 z-20 hidden items-center gap-2 text-xs text-[#E9DFD0]/70 sm:flex"
-        style={{ opacity: started && !keysUsed && !paused ? 1 : 0, transition: "opacity 600ms ease" }}
+        className="pointer-events-none fixed bottom-5 left-5 z-20 hidden flex-col gap-1.5 text-xs text-[#E9DFD0] sm:flex"
+        style={{
+          opacity: !started || paused || shiftLock ? 0 : keysUsed ? 0.35 : 0.75,
+          transition: "opacity 600ms ease",
+        }}
       >
-        {["W", "A", "S", "D"].map((k) => (
-          <kbd key={k} className="rounded border border-[#E9DFD0]/30 px-1.5 py-0.5 font-sans">
-            {k}
-          </kbd>
-        ))}
-        <span>or drag to look around · Q/E to tilt</span>
+        <div className="flex items-center gap-1.5">
+          {["W", "A", "S", "D"].map((k) => (
+            <kbd key={k} className="rounded border border-[#E9DFD0]/30 px-1.5 py-0.5 font-sans">
+              {k}
+            </kbd>
+          ))}
+          <span className="ml-1">move · Q/E tilt · drag to look</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <kbd className="rounded border border-[#E9DFD0]/30 px-1.5 py-0.5 font-sans">Shift</kbd>
+          <span className="ml-1">shift lock: look with the mouse, no dragging</span>
+        </div>
       </div>
+
+      {/* shift lock: crosshair and a reminder of how to leave */}
+      {shiftLock && (
+        <>
+          <div className="pointer-events-none fixed left-1/2 top-1/2 z-20 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#FFDE85] shadow-[0_0_6px_rgba(255,222,133,0.8)]" />
+          <div className="pointer-events-none fixed bottom-6 left-1/2 z-20 -translate-x-1/2 rounded-full bg-black/50 px-4 py-1.5 text-xs text-[#FFDE85]">
+            shift lock on · Shift or Esc to exit
+          </div>
+        </>
+      )}
 
       {hovered && (
         <div className="pointer-events-none fixed bottom-10 left-1/2 z-20 -translate-x-1/2">

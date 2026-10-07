@@ -35,13 +35,14 @@ export default function RoomPage() {
     setTimeout(() => setLoaderGone(true), 1200);
   }, []);
 
-  // Deep links (/room?open=projects) skip the intro and open the section;
-  // /room?skipintro goes straight to the room.
+  // Deep links (/room?open=projects) skip the intro and open the section.
+  // /room?skipintro (local dev only) goes straight to the room for testing.
   /* eslint-disable react-hooks/set-state-in-effect -- reads the URL once on mount */
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const hit = SECTIONS.find((s) => s === q.get("open"));
-    if (hit || q.has("skipintro")) {
+    const devSkip = process.env.NODE_ENV !== "production" && q.has("skipintro");
+    if (hit || devSkip) {
       setPhase("room");
       setLoaderGone(true);
     }
