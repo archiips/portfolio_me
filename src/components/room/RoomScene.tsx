@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/immutability -- the camera and controls are
    three.js objects driven imperatively from useFrame, as R3F intends. */
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Preload } from "@react-three/drei";
@@ -11,6 +11,7 @@ import RoomModel from "./RoomModel";
 import NavText from "./NavText";
 import { MirrorSheet, Mirrored, RoomReflection } from "./Reflection";
 import ContactBar from "./ContactBar";
+import KeyboardControls from "./KeyboardControls";
 import { LABEL_OF, Section } from "./roomNav";
 
 // Blender camera was at (7.2, -7.4, 5.4) looking at (-0.1, 0.1, 1.15).
@@ -89,6 +90,8 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
   const [hovered, setHovered] = useState<Section | null>(null);
   const controls = useRef<OrbitControlsImpl>(null);
   const [mobile, setMobile] = useState(false);
+  const [keysUsed, setKeysUsed] = useState(false);
+  const markKeysUsed = useCallback(() => setKeysUsed(true), []);
 
   useEffect(() => {
     const check = () => setMobile(window.innerWidth / window.innerHeight < 0.9);
@@ -141,6 +144,7 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
           {/* Compile every shader and upload every texture as soon as the
               model arrives (during the boot screen), not on first view. */}
           <Preload all />
+          <KeyboardControls controls={controls} enabled={started && !paused} onUsed={markKeysUsed} />
         </Suspense>
 
         <OrbitControls
@@ -164,6 +168,19 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
       />
 
       <ContactBar />
+
+      {/* keyboard hint, gone once the keys have been used */}
+      <div
+        className="pointer-events-none fixed bottom-5 left-5 z-20 hidden items-center gap-2 text-xs text-[#E9DFD0]/70 sm:flex"
+        style={{ opacity: started && !keysUsed && !paused ? 1 : 0, transition: "opacity 600ms ease" }}
+      >
+        {["W", "A", "S", "D"].map((k) => (
+          <kbd key={k} className="rounded border border-[#E9DFD0]/30 px-1.5 py-0.5 font-sans">
+            {k}
+          </kbd>
+        ))}
+        <span>or drag to look around · Q/E to tilt</span>
+      </div>
 
       {hovered && (
         <div className="pointer-events-none fixed bottom-10 left-1/2 z-20 -translate-x-1/2">
