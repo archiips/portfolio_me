@@ -5,10 +5,11 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { MeshReflectorMaterial, OrbitControls, Preload } from "@react-three/drei";
+import { OrbitControls, Preload } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import RoomModel from "./RoomModel";
 import NavText from "./NavText";
+import { MirrorSheet, Mirrored, RoomReflection } from "./Reflection";
 import ContactBar from "./ContactBar";
 import { LABEL_OF, Section } from "./roomNav";
 
@@ -76,34 +77,6 @@ function CameraIntro({
   return null;
 }
 
-// The ground is invisible except for what it reflects, like the reference: an
-// unlit surface in exactly the background colour (the background is not
-// tone-mapped, so neither is this), with the blurred reflection on top. Lit
-// and fogged, it showed up as a shiny band across the back.
-function MirrorFloor() {
-  return (
-    <mesh rotation-x={-Math.PI / 2} position={[0, -0.101, 0]}>
-      <planeGeometry args={[200, 200]} />
-      <MeshReflectorMaterial
-        resolution={512}
-        blur={[200, 60]}
-        mixBlur={0.8}
-        mixStrength={1.6}
-        mixContrast={1}
-        mirror={0.7}
-        depthScale={0}
-        color="#000000"
-        emissive={BG}
-        emissiveIntensity={1}
-        metalness={0}
-        roughness={1}
-        toneMapped={false}
-        fog={false}
-      />
-    </mesh>
-  );
-}
-
 interface RoomSceneProps {
   onSelect: (s: Section) => void;
   /** False while the boot/hello screens cover the room. */
@@ -158,7 +131,12 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
             onHover={setHovered}
             onSelect={onSelect}
           />
-          <MirrorFloor />
+          {/* mirror floor: flipped room and menu, under a sheet of background */}
+          <RoomReflection />
+          <Mirrored>
+            <NavText ghost mobile={mobile} hovered={hovered} onHover={setHovered} onSelect={onSelect} />
+          </Mirrored>
+          <MirrorSheet color={BG} />
           <CameraIntro controls={controls} mobile={mobile} started={started} />
           {/* Compile every shader and upload every texture as soon as the
               model arrives (during the boot screen), not on first view. */}

@@ -37,15 +37,14 @@ export default function RoomPage() {
     }, 500);
   }, []);
 
-  // Deep links (/room?open=projects) skip the intro and open the section.
+  // Deep links (/room?open=projects) skip the intro and open the section;
+  // /room?skipintro goes straight to the room.
   useEffect(() => {
-    const want = new URLSearchParams(window.location.search).get("open");
-    const hit = SECTIONS.find((s) => s === want);
-    if (hit) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- reading the URL once on mount
-      setPhase("room");
-      setOpen(hit);
-    }
+    const q = new URLSearchParams(window.location.search);
+    const hit = SECTIONS.find((s) => s === q.get("open"));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reading the URL once on mount
+    if (hit || q.has("skipintro")) setPhase("room");
+    if (hit) setOpen(hit);
   }, []);
 
   // The bar follows the model download while one is running. Nothing running

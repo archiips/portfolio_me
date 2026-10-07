@@ -14,8 +14,8 @@ import {
   sectionFromHitbox,
 } from "./roomNav";
 
-const MODEL_URL = assetPath("/models/room-baked.glb");
-const DRACO_PATH = assetPath("/draco/");
+export const MODEL_URL = assetPath("/models/room-baked.glb");
+export const DRACO_PATH = assetPath("/draco/");
 
 const HOVER_EMISSIVE = 1.9; // multiplier on top of the resting brightness
 const LERP = 0.18;

@@ -19,7 +19,10 @@ const ITEMS: { section: Section; label: string }[] = [
   { section: "contact", label: "contact me" },
 ];
 
+const noRaycast = () => {};
+
 interface ItemProps {
+  ghost?: boolean;
   label: string;
   section: Section;
   y: number;
@@ -29,7 +32,7 @@ interface ItemProps {
   align: "left" | "center";
 }
 
-function Item({ label, section, y, hovered, onHover, onSelect, align }: ItemProps) {
+function Item({ label, section, y, hovered, onHover, onSelect, align, ghost }: ItemProps) {
   const ref = useRef<THREE.Mesh>(null);
 
   // Ease toward the hover colour and nudge the line out a little.
@@ -52,15 +55,19 @@ function Item({ label, section, y, hovered, onHover, onSelect, align }: ItemProp
       anchorY="middle"
       position={[0, y, 0]}
       color={IDLE}
-      onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-        e.stopPropagation();
-        onHover(section);
-      }}
-      onPointerOut={() => onHover(null)}
-      onClick={(e: ThreeEvent<MouseEvent>) => {
-        e.stopPropagation();
-        onSelect(section);
-      }}
+      {...(ghost
+        ? { raycast: noRaycast }
+        : {
+            onPointerOver: (e: ThreeEvent<PointerEvent>) => {
+              e.stopPropagation();
+              onHover(section);
+            },
+            onPointerOut: () => onHover(null),
+            onClick: (e: ThreeEvent<MouseEvent>) => {
+              e.stopPropagation();
+              onSelect(section);
+            },
+          })}
     >
       {label}
     </Text>
@@ -68,6 +75,8 @@ function Item({ label, section, y, hovered, onHover, onSelect, align }: ItemProp
 }
 
 interface NavTextProps {
+  /** The mirrored copy in the floor: same look, never clickable. */
+  ghost?: boolean;
   mobile: boolean;
   hovered: Section | null;
   onHover: (s: Section | null) => void;
@@ -76,7 +85,7 @@ interface NavTextProps {
 
 // The name and the section list live in the 3D scene, beside the room, so they
 // are part of the diorama and reflect in the floor like the reference.
-export default function NavText({ mobile, hovered, onHover, onSelect }: NavTextProps) {
+export default function NavText({ ghost, mobile, hovered, onHover, onSelect }: NavTextProps) {
   const align = mobile ? "center" : "left";
   // Desktop: on the back wall's plane, continuing past the room's right edge,
   // so the lines run parallel to the wall like the reference.
@@ -94,6 +103,7 @@ export default function NavText({ mobile, hovered, onHover, onSelect }: NavTextP
         color="#F2E8DA"
         letterSpacing={0.02}
         material-toneMapped={false}
+        raycast={noRaycast}
       >
         archit jaiswal
       </Text>
@@ -106,6 +116,7 @@ export default function NavText({ mobile, hovered, onHover, onSelect }: NavTextP
           onHover={onHover}
           onSelect={onSelect}
           align={align}
+          ghost={ghost}
         />
       ))}
     </group>
