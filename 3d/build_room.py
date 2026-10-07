@@ -175,7 +175,7 @@ def place_assets():
         ("mouse-pad", "MousePad", 0.62, 'x', (1.42, 1.42, DTOP + 0.002)),
         ("custom-keyboard", "Keyboard", 0.36, 'x', (1.34, 1.44, DTOP + 0.004)),
         ("wirelesss-mouse", "Mouse", 0.11, 'y', (1.66, 1.43, DTOP + 0.004)),
-        ("gaming-computer-", "PC", 0.46, 'z', (1.95, 1.70, 0.0)),   # right end, under the desk
+        ("computer-build", "PC", 0.46, 'z', (1.95, 1.70, 0.0)),     # right end, under the desk
         ("headphone-stand-", "HeadphoneStand", 0.26, 'z', (0.56, 1.36, DTOP + 0.002)),
         ("headphones-rigge", "Headphones", 0.19, 'z', (0.56, 1.34, 0.86)),
     ):
@@ -183,13 +183,7 @@ def place_assets():
         fit(o, size, axis=axis)
         place(o, x=xyz[0], y=xyz[1], z=xyz[2])
 
-    # the case's intake fans sit on +X, so +X is its front; the chair is at -Y
-    pc = bpy.data.objects.get("PC")
-    if pc:
-        pc.rotation_mode = 'XYZ'
-        pc.rotation_euler.z = math.radians(-90)
-        bpy.context.view_layer.update()
-        place(pc, x=1.95, y=1.70, z=0.0)
+    # the case's front (power button, RGB strip) already faces -Y, the chair
 
     sc = append_asset("display-shelf-ca", into="Furniture", rename="ShelfCabinet")
     fit(sc, 1.95, axis='z')
@@ -894,7 +888,6 @@ def whiten_peripherals():
 
     whiten(O.get("MousePad"), "MousePad_White", 0xEFEFEC, 0.72)
     whiten(O.get("Mouse"), "Mouse_White", 0xF6F6F4, 0.35)
-    whiten(O.get("PC"), "PC_White", 0xF2F2F0, 0.30)
 
 
 def make_car(name, body_hex, loc, rot_deg):
@@ -997,6 +990,83 @@ def space_wall_items():
     bpy.context.view_layer.update()
 
 
+def polish_pass():
+    """Fixes from reviewing the baked room in the browser."""
+    O = bpy.data.objects
+
+    def principled(m):
+        m.use_nodes = True
+        nt = m.node_tree
+        b = next((n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'), None) \
+            or nt.nodes.new("ShaderNodeBsdfPrincipled")
+        nt.links.new(b.outputs[0],
+                     next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL').inputs["Surface"])
+        return b
+
+    # PC: white shell, smoked opaque glass (transmission bakes as black), and
+    # the asset's three red point lights removed - they glowed under the desk.
+    M = bpy.data.materials
+    if "PC_Plastic Color" in M:
+        b = principled(M["PC_Plastic Color"])
+        for l in list(b.inputs["Base Color"].links):
+            M["PC_Plastic Color"].node_tree.links.remove(l)
+        b.inputs["Base Color"].default_value = srgb(0xF1F1EE)
+        b.inputs["Roughness"].default_value = 0.4
+    for g in ("PC_Glass Cleared", "PC_Glass_Frosted"):
+        if g in M:
+            b = principled(M[g])
+            b.inputs["Base Color"].default_value = srgb(0x23262B)
+            b.inputs["Roughness"].default_value = 0.18
+            b.inputs["Transmission Weight"].default_value = 0.0
+    pc = O.get("PC")
+    if pc:
+        for c in list(pc.children_recursive):
+            if c.type == 'LIGHT':
+                bpy.data.objects.remove(c, do_unlink=True)
+
+    # Curtains: the asset mixes in a Transparent BSDF, which bakes as dark
+    # streaks of the wall behind. A plain linen with a little light coming
+    # through reads clean.
+    lin = material("Curtain_Linen", 0xE6DFD2, rough=0.95)
+    b = principled(lin)
+    b.inputs["Sheen Weight"].default_value = 0.4
+    b.inputs["Emission Color"].default_value = srgb(0xFFE3B8)
+    b.inputs["Emission Strength"].default_value = 0.12
+    for n in ("Curtain01", "Curtain02"):
+        if n in O:
+            for slot in O[n].material_slots:
+                slot.material = lin
+
+    # Messi poster was flush with its frame's front face and flickered.
+    if "Poster_Messi" in O:
+        O["Poster_Messi"].location.x += 0.004
+    # The record sat inside the sleeve's thickness, covering the artwork.
+    for n in ("Vinyl_Record", "Vinyl_Label"):
+        if n in O:
+            O[n].location.x -= 0.010
+
+    # Lighting: the window fill blew out the back wall while the front-left
+    # corner and the bench went black. Softer window, a broad ceiling fill and
+    # a big fill from the camera side even it out.
+    def light(name, **kw):
+        o = O.get(name)
+        if not o:
+            return None
+        for k, v in kw.items():
+            setattr(o.data, k, v)
+        return o
+    light("Win_Fill", energy=95)
+    amb = light("Amb_Bounce", energy=150, shape='RECTANGLE', size=3.8, size_y=3.4)
+    if amb:
+        amb.location, amb.rotation_euler = (0, 0, 2.6), (math.pi, 0, 0)
+    ff = light("Front_Fill", energy=160, shape='RECTANGLE', size=4.0, size_y=2.5)
+    if ff:
+        ff.location = (4.2, -4.6, 3.2)
+        ff.rotation_euler = (Vector((0, 0.3, 0.9)) - ff.location).to_track_quat('-Z', 'Y').to_euler()
+    light("Rim_Cool", energy=30)
+    light("GlowLight", energy=45)
+
+
 def main():
     clear_scene()
     build_shell()
@@ -1015,6 +1085,7 @@ def main():
     build_panda()
     space_wall_items()
     settle_props()
+    polish_pass()
     build_camera()
     build_nav()
     os.makedirs(os.path.dirname(BLEND_OUT), exist_ok=True)

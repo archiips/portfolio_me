@@ -37,6 +37,7 @@ function Item({ label, section, y, hovered, onHover, onSelect, align }: ItemProp
     const m = ref.current;
     if (!m) return;
     const mat = m.material as THREE.MeshBasicMaterial;
+    mat.toneMapped = false; // UI colour, not scene light
     mat.color.lerp(hovered ? HOVER : IDLE, 0.2);
     const targetX = hovered && align === "left" ? 0.08 : 0;
     m.position.x += (targetX - m.position.x) * 0.2;
@@ -77,8 +78,10 @@ interface NavTextProps {
 // are part of the diorama and reflect in the floor like the reference.
 export default function NavText({ mobile, hovered, onHover, onSelect }: NavTextProps) {
   const align = mobile ? "center" : "left";
-  const position: [number, number, number] = mobile ? [0.2, 3.85, 0.2] : [2.75, 2.05, -1.05];
-  const rotation: [number, number, number] = mobile ? [0, 0.8, 0] : [0, 0.5, 0];
+  // Desktop: on the back wall's plane, continuing past the room's right edge,
+  // so the lines run parallel to the wall like the reference.
+  const position: [number, number, number] = mobile ? [0.2, 3.85, 0.2] : [2.65, 2.0, -1.98];
+  const rotation: [number, number, number] = mobile ? [0, 0.8, 0] : [0, 0, 0];
 
   return (
     <group position={position} rotation={rotation}>
@@ -90,6 +93,7 @@ export default function NavText({ mobile, hovered, onHover, onSelect }: NavTextP
         position={[0, 0.42, 0]}
         color="#F2E8DA"
         letterSpacing={0.02}
+        material-toneMapped={false}
       >
         archit jaiswal
       </Text>

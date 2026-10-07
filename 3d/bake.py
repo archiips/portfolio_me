@@ -16,11 +16,18 @@ REPO = os.path.expanduser("~/main/PROJECTS/PORTFOLIO/portfolio-app")
 BLEND_OUT = os.path.expanduser("~/main/Blender/room_baked.blend")
 GLB_OUT = os.path.join(REPO, "public", "models", "room-baked.glb")
 
-SAMPLES = 48
-ATLAS = 2048          # for joined batches
+SAMPLES = 64
 NAV_TEX = 1024        # for the individually-baked nav targets
-BATCH = 45            # meshes joined per atlas
-DECIMATE_TO = 8000    # same budget the web export uses
+DENSITY = 460         # texels per metre (sqrt of surface area), per asset
+MIN_TEX, MAX_TEX = 256, 2048
+POOL_TEX = 2048       # small assets share atlases of this size
+DECIMATE_TO = 30000   # 8k tore holes in the cloth meshes (bed, pillows)
+MIN_RATIO = 0.12
+
+# Bake at a fraction of the real light so bright areas don't clip in an 8-bit
+# texture. The browser multiplies it back (1 / LIGHT_SCALE) and tone-maps with
+# AgX, the same view transform the Blender scene is graded in.
+LIGHT_SCALE = 0.5
 
 # section -> the object that visually represents it. 'aboutme' lives on the
 # Messi poster, which keeps its own name, so it needs an explicit mapping.
@@ -195,13 +202,106 @@ def picture_material(obj, brightness):
     log(f"  {obj.name}: unlit picture ({img.size[0]}x{img.size[1]})")
 
 
+def matte_for_bake(objs):
+    """Baking COMBINED freezes reflections seen from the surface normal, so
+    glossy and metal materials came out as random black/orange patches (the
+    chair back, the bed frame). A rough, non-metal version bakes clean."""
+    seen = set()
+    for o in objs:
+        for slot in o.material_slots:
+            m = slot.material
+            if not m or not m.use_nodes or m.name in seen:
+                continue
+            seen.add(m.name)
+            for b in (n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'):
+                for name, val in (("Metallic", 0.0), ("Transmission Weight", 0.0),
+                                  ("Coat Weight", 0.0)):
+                    inp = b.inputs.get(name)
+                    if inp:
+                        for l in list(inp.links):
+                            m.node_tree.links.remove(l)
+                        inp.default_value = val
+                r = b.inputs["Roughness"]
+                if r.links:
+                    for l in list(r.links):
+                        m.node_tree.links.remove(l)
+                    r.default_value = 0.65
+                else:
+                    r.default_value = max(r.default_value, 0.55)
+    log(f"made {len(seen)} materials matte for baking")
+
+
+def scale_lights(k):
+    for o in bpy.data.objects:
+        if o.type == 'LIGHT':
+            o.data.energy *= k
+    w = bpy.context.scene.world
+    bg = next((n for n in w.node_tree.nodes if n.type == 'BACKGROUND'), None) if w else None
+    if bg:
+        bg.inputs["Strength"].default_value *= k
+    # emissive surfaces (monitor, lamp shades, LED strips) light the room too
+    for m in bpy.data.materials:
+        if not m.use_nodes:
+            continue
+        for n in m.node_tree.nodes:
+            if n.type == 'EMISSION':
+                n.inputs["Strength"].default_value *= k
+            elif n.type == 'BSDF_PRINCIPLED':
+                n.inputs["Emission Strength"].default_value *= k
+
+
+def root_of(o):
+    while o.parent:
+        o = o.parent
+    return o
+
+
+def area(o):
+    s = o.matrix_world.to_scale()
+    k = abs(s.x * s.y * s.z) ** (2 / 3)
+    return sum(p.area for p in o.data.polygons) * k
+
+
+def tex_size(a):
+    px = math.sqrt(max(a, 1e-6)) * DENSITY
+    size = 2 ** round(math.log2(max(px, 1)))
+    return max(MIN_TEX, min(MAX_TEX, size))
+
+
+def group_by_asset(objs):
+    """One texture per asset, sized by its surface area, instead of 45 random
+    meshes sharing one 2048 atlas (which left big things like the curtains
+    and the bed blurry and smeared). Small assets are pooled so the room
+    doesn't turn into hundreds of draw calls."""
+    groups = {}
+    for o in objs:
+        groups.setdefault(root_of(o).name, []).append(o)
+    big, pool = [], []
+    for name, ms in sorted(groups.items()):
+        a = sum(area(o) for o in ms)
+        size = tex_size(a)
+        (big if size >= 1024 else pool).append((name, ms, a, size))
+    out = [(ms, size, f"a_{name}") for name, ms, a, size in big]
+    budget = (POOL_TEX * 0.55 / DENSITY) ** 2   # metres^2 that fit one pool atlas
+    cur, cur_a, i = [], 0.0, 0
+    for name, ms, a, size in sorted(pool, key=lambda g: -g[2]):
+        if cur and cur_a + a > budget:
+            out.append((cur, POOL_TEX, f"pool{i:02d}"))
+            cur, cur_a, i = [], 0.0, i + 1
+        cur += ms
+        cur_a += a
+    if cur:
+        out.append((cur, POOL_TEX, f"pool{i:02d}"))
+    return out
+
+
 def decimate_all(objs):
     n = 0
     for o in objs:
         tris = sum(max(len(p.vertices) - 2, 0) for p in o.data.polygons)
         if tris > DECIMATE_TO:
             m = o.modifiers.new("BakeDecimate", 'DECIMATE')
-            m.ratio = max(DECIMATE_TO / tris, 0.05)
+            m.ratio = max(DECIMATE_TO / tris, MIN_RATIO)
             n += 1
     if n:
         if select(objs):
@@ -303,18 +403,21 @@ def main():
     setup_cycles()
     curves_to_meshes()
     hide_shadows()
+    scale_lights(LIGHT_SCALE)
     nav_sets, rest = collect()
+    matte_for_bake(rest + [o for ms in nav_sets.values() for o in ms])
     log(f"nav targets: {list(nav_sets)}   other static meshes: {len(rest)}")
 
     decimate_all(rest + [o for ms in nav_sets.values() for o in ms])
     # object references survive convert(); re-collect to be safe
     nav_sets, rest = collect()
+    batches = group_by_asset(rest)        # needs the hierarchy, so before unparenting
     unparent_all(rest + [o for ms in nav_sets.values() for o in ms])
 
     for name, brightness in PICTURES.items():
         o = bpy.data.objects.get(name)
         if o:
-            picture_material(o, brightness)
+            picture_material(o, brightness * LIGHT_SCALE)  # browser undoes the scale
 
     targets = []
     for name, ms in nav_sets.items():
@@ -323,12 +426,11 @@ def main():
             continue  # already an unlit picture, nothing to bake
         if j:
             targets.append((j, NAV_TEX, f"nav_{name}"))
-    rest.sort(key=lambda o: o.name)
-    for i in range(0, len(rest), BATCH):
-        tag = f"batch{i//BATCH:02d}"
-        j = join(rest[i:i + BATCH], tag)
+    for ms, size, tag in batches:
+        tag = "".join(c if c.isalnum() or c in "_-" else "_" for c in tag)
+        j = join(ms, tag)
         if j:
-            targets.append((j, ATLAS, tag))
+            targets.append((j, size, tag))
     log(f"{len(targets)} bake targets")
 
     for obj, size, tag in targets:

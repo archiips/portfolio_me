@@ -20,10 +20,10 @@ const DRACO_PATH = assetPath("/draco/");
 const HOVER_EMISSIVE = 1.9; // multiplier on top of the resting brightness
 const LERP = 0.18;
 
-// The bake is faithful to the Blender render, which is darker on a monitor
-// than it looks in Blender's viewer. Lifting every baked emissive map evenly
-// keeps the light/shadow shape while making the props readable.
-export const BRIGHTNESS = 1.45;
+// The bake is stored at half the real light (LIGHT_SCALE in 3d/bake.py) so
+// highlights don't clip; this restores it, and AgX tone mapping in RoomScene
+// rolls the highlights off the way Blender's view transform does.
+export const BRIGHTNESS = 2.0;
 
 // The panda's old Blender loop is replaced by usePandaWander.
 const SKIP_CLIPS = new Set(["PandaAction"]);

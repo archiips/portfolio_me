@@ -14,8 +14,11 @@ import { LABEL_OF, Section } from "./roomNav";
 // glTF is Y-up, so Blender (x, y, z) becomes (x, z, -y). The landing view is
 // pulled in closer than the Blender framing and aimed a little right of the
 // room so the room sits left and the menu text right, like the reference.
-const CAM_TARGET = new THREE.Vector3(0.75, 1.05, -0.75);
-const CAM_END = new THREE.Vector3(6.6, 4.3, 5.6);
+// Solved so the room's front-left corner and the end of the name both fit at
+// a 1.6 aspect; narrower windows back the camera off proportionally.
+const CAM_TARGET = new THREE.Vector3(1.6, 1.1, -0.4);
+const CAM_DIR = new THREE.Vector3(0.636, 0.353, 0.69).normalize();
+const CAM_DIST = 7.6;
 const CAM_START = new THREE.Vector3(14.5, 10.5, 13.0);
 const INTRO_SECONDS = 2.6;
 
@@ -36,9 +39,12 @@ function CameraIntro({
   controls: React.RefObject<OrbitControlsImpl | null>;
   mobile: boolean;
 }) {
-  const { camera } = useThree();
+  const { camera, size } = useThree();
   const t = useRef(0);
-  const end = mobile ? MOBILE_END : CAM_END;
+  const aspect = size.width / Math.max(size.height, 1);
+  const end = mobile
+    ? MOBILE_END
+    : CAM_TARGET.clone().addScaledVector(CAM_DIR, CAM_DIST * Math.max(1, 1.6 / aspect));
   const target = mobile ? MOBILE_TARGET : CAM_TARGET;
 
   useEffect(() => {
@@ -110,7 +116,9 @@ export default function RoomScene({ onSelect }: RoomSceneProps) {
         camera={{ position: CAM_START.toArray(), fov: 40, near: 0.1, far: 120 }}
         gl={{ antialias: true }}
         onCreated={({ gl, scene }) => {
-          gl.toneMapping = THREE.NoToneMapping; // the bake is already tone-mapped
+          // Same view transform the Blender scene is graded in (AgX, -0.3 EV).
+          gl.toneMapping = THREE.AgXToneMapping;
+          gl.toneMappingExposure = 0.85;
           scene.background = new THREE.Color(BG);
           scene.fog = new THREE.Fog(BG, 22, 45);
         }}
