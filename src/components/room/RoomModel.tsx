@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { useAnimations, useGLTF } from "@react-three/drei";
+import { usePandaWander } from "./usePandaWander";
 import { assetPath } from "@/lib/utils";
 import {
   HITBOX_OF,
@@ -16,8 +17,29 @@ import {
 const MODEL_URL = assetPath("/models/room-baked.glb");
 const DRACO_PATH = assetPath("/draco/");
 
-const HOVER_EMISSIVE = 2.1; // baked materials sit at 1.0; this is the hover lift
+const HOVER_EMISSIVE = 1.9; // multiplier on top of the resting brightness
 const LERP = 0.18;
+
+// The bake is faithful to the Blender render, which is darker on a monitor
+// than it looks in Blender's viewer. Lifting every baked emissive map evenly
+// keeps the light/shadow shape while making the props readable.
+export const BRIGHTNESS = 1.45;
+
+// The panda's old Blender loop is replaced by usePandaWander.
+const SKIP_CLIPS = new Set(["PandaAction"]);
+
+function blobShadowTexture() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d")!;
+  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, "rgba(0,0,0,0.55)");
+  grad.addColorStop(0.6, "rgba(0,0,0,0.25)");
+  grad.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
 
 interface RoomModelProps {
   hovered: Section | null;
@@ -29,6 +51,23 @@ export default function RoomModel({ hovered, onHover, onSelect }: RoomModelProps
   const group = useRef<THREE.Group>(null);
   const { scene, animations } = useGLTF(MODEL_URL, DRACO_PATH);
   const { actions } = useAnimations(animations, group);
+  const pandaShadow = useRef<THREE.Mesh>(null);
+  const shadowTex = useMemo(() => blobShadowTexture(), []);
+  const hasPanda = usePandaWander(scene, pandaShadow);
+
+  // Lift every baked (emissive-mapped) material once.
+  useMemo(() => {
+    scene.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach((m) => {
+        if (m instanceof THREE.MeshStandardMaterial && m.emissiveMap && !m.userData.lifted) {
+          m.emissiveIntensity *= BRIGHTNESS;
+          m.userData.lifted = true;
+        }
+      });
+    });
+  }, [scene]);
 
   // Collect the hitboxes and the meshes they highlight. Hitboxes must stay
   // `visible` or the raycaster skips them, so the MATERIAL is hidden instead.
@@ -76,7 +115,8 @@ export default function RoomModel({ hovered, onHover, onSelect }: RoomModelProps
   }, [navMeshes]);
 
   useEffect(() => {
-    Object.values(actions).forEach((a) => {
+    Object.entries(actions).forEach(([name, a]) => {
+      if (SKIP_CLIPS.has(name)) return;
       a?.reset().setLoop(THREE.LoopRepeat, Infinity).play();
     });
     return () => {
@@ -101,6 +141,12 @@ export default function RoomModel({ hovered, onHover, onSelect }: RoomModelProps
   return (
     <group ref={group}>
       <primitive object={scene} />
+      {hasPanda && (
+        <mesh ref={pandaShadow} rotation-x={-Math.PI / 2} renderOrder={1}>
+          <planeGeometry args={[0.3, 0.3]} />
+          <meshBasicMaterial map={shadowTex} transparent depthWrite={false} />
+        </mesh>
+      )}
       {hitboxes.map((h) => (
         <primitive
           key={h.name}

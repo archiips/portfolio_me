@@ -27,6 +27,14 @@ DECIMATE_TO = 8000    # same budget the web export uses
 NAV = {"projects": "projects", "aboutme": "Poster_Messi", "education": "education",
        "work": "work", "contact": "contact"}
 
+# Flat artwork is shown as the image itself instead of being baked. Squeezed
+# into a shared atlas the 0.3 m vinyl cover was a few dark pixels, and the
+# Messi poster's 1024px bake came back black in the full run.
+PICTURES = {"Poster_Messi": 0.92, "Vinyl_Sleeve": 0.85}   # name -> brightness
+
+# Animated in the browser, so it must not leave a baked shadow on the floor.
+NO_SHADOW_ROOTS = ("Panda",)
+
 
 def log(*a):
     print("[bake]", *a, flush=True)
@@ -93,7 +101,8 @@ def collect():
     for o in bpy.data.objects:
         if not usable(o):
             continue
-        if o.name in nav_members or animated(o) or o.name.startswith("steam_"):
+        if (o.name in nav_members or o.name in PICTURES or animated(o)
+                or o.name.startswith("steam_")):
             continue
         rest.append(o)
     return nav_sets, rest
@@ -111,6 +120,79 @@ def select(objs):
     if ok:
         bpy.context.view_layer.objects.active = ok[0]
     return ok
+
+
+def curves_to_meshes():
+    """Curve objects (the garland string, parts of the chair) are skipped by
+    collect(), so they reached the GLB unbaked and lit only by the ambient
+    light. Converting them first lets them bake like everything else."""
+    vl = in_view_layer()
+    curves = [o for o in bpy.data.objects
+              if o.type in ('CURVE', 'FONT') and not o.hide_render and o.name in vl]
+    if select(curves):
+        bpy.ops.object.convert(target='MESH')
+    log(f"converted {len(curves)} curves to meshes")
+
+
+def unparent_all(objs):
+    """join() deletes every merged object. Any of them that parented an object
+    in a LATER batch took that child's parent away, and the child fell back to
+    its local transform - which is how a desk prop ended up on the rug. Baking
+    targets are static, so dropping the hierarchy (keeping world position) is
+    safe."""
+    for o in objs:
+        if o.parent:
+            mw = o.matrix_world.copy()
+            o.parent = None
+            o.matrix_world = mw
+
+
+def hide_shadows():
+    for root in NO_SHADOW_ROOTS:
+        r = bpy.data.objects.get(root)
+        if r:
+            for o in descendants(r):
+                o.visible_shadow = False
+
+
+def picture_material(obj, brightness):
+    """Unlit image material on the mesh's front face. The source material maps
+    the image with Generated Y/Z, so the same mapping is written into a real
+    UV layer - glTF has no Generated coordinates."""
+    src = obj.material_slots[0].material if obj.material_slots else None
+    img = next((n.image for n in src.node_tree.nodes if n.type == 'TEX_IMAGE'), None) if src else None
+    if img is None:
+        log(f"  {obj.name}: no image found, leaving as is")
+        return
+    me = obj.data
+    xs = [v.co for v in me.vertices]
+    y0, y1 = min(v.y for v in xs), max(v.y for v in xs)
+    z0, z1 = min(v.z for v in xs), max(v.z for v in xs)
+    for u in list(me.uv_layers):
+        me.uv_layers.remove(u)
+    uv = me.uv_layers.new(name="Bake")
+    for loop in me.loops:
+        co = me.vertices[loop.vertex_index].co
+        uv.data[loop.index].uv = ((co.y - y0) / (y1 - y0), (co.z - z0) / (z1 - z0))
+
+    mat = bpy.data.materials.new(f"Picture_{obj.name}")
+    mat.use_nodes = True
+    nt = mat.node_tree
+    for n in list(nt.nodes):
+        if n.type != 'OUTPUT_MATERIAL':
+            nt.nodes.remove(n)
+    bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.inputs["Base Color"].default_value = (0, 0, 0, 1)
+    bsdf.inputs["Roughness"].default_value = 1.0
+    bsdf.inputs["Emission Strength"].default_value = brightness
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image, tex.extension = img, 'EXTEND'
+    nt.links.new(tex.outputs["Color"], bsdf.inputs["Emission Color"])
+    nt.links.new(bsdf.outputs["BSDF"],
+                 next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL').inputs["Surface"])
+    me.materials.clear()
+    me.materials.append(mat)
+    log(f"  {obj.name}: unlit picture ({img.size[0]}x{img.size[1]})")
 
 
 def decimate_all(objs):
@@ -219,16 +301,26 @@ def bake_object(obj, size, tag):
 def main():
     t0 = time.time()
     setup_cycles()
+    curves_to_meshes()
+    hide_shadows()
     nav_sets, rest = collect()
     log(f"nav targets: {list(nav_sets)}   other static meshes: {len(rest)}")
 
     decimate_all(rest + [o for ms in nav_sets.values() for o in ms])
     # object references survive convert(); re-collect to be safe
     nav_sets, rest = collect()
+    unparent_all(rest + [o for ms in nav_sets.values() for o in ms])
+
+    for name, brightness in PICTURES.items():
+        o = bpy.data.objects.get(name)
+        if o:
+            picture_material(o, brightness)
 
     targets = []
     for name, ms in nav_sets.items():
         j = join(ms, f"nav_{name}")
+        if j and j.data.materials and j.data.materials[0].name.startswith("Picture_"):
+            continue  # already an unlit picture, nothing to bake
         if j:
             targets.append((j, NAV_TEX, f"nav_{name}"))
     rest.sort(key=lambda o: o.name)
@@ -255,11 +347,14 @@ def main():
     bpy.ops.wm.save_as_mainfile(filepath=BLEND_OUT, compress=True)
     log("saved", BLEND_OUT)
 
-    hidden = [o for o in bpy.data.objects if o.hide_render]
-    for o in hidden:
-        o.hide_render = False
+    # Hitboxes are render-hidden so they never bake, but the browser needs them
+    # for raycasting. Only they are un-hidden: un-hiding EVERY hidden object
+    # used to ship leftover props (shelf text, stray cylinders) in the GLB.
+    for o in bpy.data.objects:
+        if o.name.endswith("hitbox"):
+            o.hide_render = False
     bpy.ops.export_scene.gltf(
-        filepath=GLB_OUT, export_format='GLB', use_visible=True,
+        filepath=GLB_OUT, export_format='GLB', use_visible=True, use_renderable=True,
         export_apply=True, export_cameras=True, export_lights=False,
         export_yup=True, export_animations=True, export_frame_range=True,
         export_image_format='JPEG', export_jpeg_quality=80,

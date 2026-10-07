@@ -66,7 +66,9 @@ def build_shell():
     m_trim = material("Trim_Cream", 0xE6E7E1, rough=0.80)
     m_desk = material("Desk_Wood", 0x6B4428, rough=0.55)
 
-    box("Floor", RX0, RX1, RY0, RY1, -T, 0.0, "Shell", material=m_floor)
+    # Top sits 12 mm under the plank tops. Flush with them, the two surfaces
+    # z-fought and the floor flickered in stripes whenever the camera moved.
+    box("Floor", RX0, RX1, RY0, RY1, -T, -0.012, "Shell", material=m_floor)
     for name, x0, x1, z0, z1 in (
         ("Wall_Back_L", RX0, WX0, 0.0, RZ1),
         ("Wall_Back_R", WX1, RX1, 0.0, RZ1),
