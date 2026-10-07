@@ -17,7 +17,7 @@ const SCRIPT: Msg[] = [
   { from: "them", text: "hey! whose room is this?" },
   { from: "me", text: "hi, I'm Archit 👋" },
   { from: "me", text: "CS & Software Engineering student at UW Bothell, living in Seattle" },
-  { from: "me", img: "/about/profile.jpg" },
+  { from: "me", img: "/about/archit.jpg" },
   { from: "them", text: "what are you working on?" },
   { from: "me", text: "ML research at UW's DAIS group: teaching a mental-health chatbot to pick up emotion from your voice" },
   { from: "me", text: "this summer I built the AI side of an HR portal at Quadrant, and got its answers from 124s down to 7s" },
@@ -123,7 +123,7 @@ export default function AboutOverlay({ open, onClose }: { open: boolean; onClose
         {/* header */}
         <div className="flex items-center gap-3 border-b border-white/10 bg-[#211c18] px-5 pb-3 pt-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={assetPath("/about/me.jpg")} alt="" className="h-10 w-10 rounded-full object-cover" />
+          <img src={assetPath("/about/archit.jpg")} alt="" className="h-10 w-10 rounded-full object-cover object-[50%_25%]" />
           <div className="min-w-0">
             <p className="font-semibold text-[#EFE6D6]">{aboutMe.name}</p>
             <p className="flex items-center gap-1 truncate text-xs text-[#9b8f80]">
