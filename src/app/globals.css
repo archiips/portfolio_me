@@ -88,3 +88,40 @@ body {
 .room-ui * {
   transition-property: color, background-color, border-color, opacity, box-shadow;
 }
+
+/* Room loader. Pure CSS (transform only) so the compositor keeps these
+   moving even while the main thread is busy parsing the 3D room - that busy
+   stretch is what made a JS-driven bar and record stutter halfway. */
+@keyframes room-spin { to { transform: rotate(360deg); } }
+@keyframes room-bob {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-2px) rotate(4deg); }
+}
+@keyframes room-line { from { transform: scaleX(0); } to { transform: scaleX(0.96); } }
+@keyframes room-line-end { from { transform: scaleX(0.96); } to { transform: scaleX(1); } }
+@keyframes room-walk { from { transform: translateX(0%); } to { transform: translateX(96%); } }
+@keyframes room-walk-end { from { transform: translateX(96%); } to { transform: translateX(100%); } }
+
+.room-spin { animation: room-spin 3.4s linear infinite; }
+.room-bob { animation: room-bob 0.45s ease-in-out infinite; }
+.room-line { transform-origin: left; animation: room-line 2.8s cubic-bezier(0.45, 0.05, 0.35, 1) forwards; }
+.room-line.done { animation: room-line-end 0.45s ease-out forwards; }
+.room-walk { animation: room-walk 2.8s cubic-bezier(0.45, 0.05, 0.35, 1) forwards; }
+.room-walk.done { animation: room-walk-end 0.45s ease-out forwards; }
+.room-walk.done .room-bob { animation-play-state: paused; }
+
+/* "Lights on": the loader's mask opens from the centre. A registered custom
+   property lets CSS itself interpolate the radius, off the main thread's
+   critical path, while the room starts rendering underneath. */
+@property --room-hole {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: -18vmax;
+}
+.room-loader {
+  --room-hole: -18vmax;
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent var(--room-hole), #000 calc(var(--room-hole) + 18vmax));
+  mask-image: radial-gradient(circle at 50% 50%, transparent var(--room-hole), #000 calc(var(--room-hole) + 18vmax));
+  transition: --room-hole 1.1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.room-loader.lights-on { --room-hole: 160vmax; }
