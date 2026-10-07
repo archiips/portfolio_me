@@ -7,8 +7,8 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 // First-person style movement on top of the orbit camera.
 //
-// WASD / arrows move the camera where it is looking (W forward, S back, A/D
-// strafe), Q/E down and up. The orbit target moves with it, so dragging still
+// WASD / arrows move the camera where it is looking (W forward along the
+// view, including up/down, S back, A/D strafe), Q/E straight down and up. The orbit target moves with it, so dragging still
 // orbits from wherever you end up.
 //
 // Shift toggles mouse look: the pointer locks and moving the mouse turns the
@@ -141,13 +141,14 @@ export default function KeyboardControls({ controls, enabled, onUsed, onShiftLoc
 
     if (keys.size === 0) return;
 
-    // walk where the camera faces, level with the floor
+    // W/S fly exactly where the camera looks (look down + W goes down);
+    // A/D strafe stays level so sideways never drifts up or down
     const { fwd, right, move } = tmp.current;
     camera.getWorldDirection(fwd);
-    fwd.y = 0;
-    if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1);
-    fwd.normalize();
-    right.crossVectors(fwd, camera.up).normalize();
+    right.crossVectors(fwd, camera.up);
+    if (right.lengthSq() < 1e-6) right.set(1, 0, 0);
+    right.y = 0;
+    right.normalize();
     move.set(0, 0, 0);
     if (keys.has("fwd")) move.add(fwd);
     if (keys.has("back")) move.sub(fwd);

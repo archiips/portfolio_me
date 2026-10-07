@@ -170,11 +170,11 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
 
       <ContactBar />
 
-      {/* controls hint; dims once the keys have been used, stays readable */}
+      {/* controls hint: always readable, on a dark backing */}
       <div
-        className="pointer-events-none fixed bottom-5 left-5 z-20 hidden flex-col gap-1.5 text-xs text-[#E9DFD0] sm:flex"
+        className="pointer-events-none fixed bottom-5 left-5 z-20 hidden flex-col gap-1.5 rounded-xl bg-black/45 px-3 py-2.5 text-xs text-[#EFE6D6] backdrop-blur-sm sm:flex"
         style={{
-          opacity: !started || paused || shiftLock ? 0 : keysUsed ? 0.35 : 0.75,
+          opacity: !started || paused || shiftLock ? 0 : keysUsed ? 0.85 : 1,
           transition: "opacity 600ms ease",
         }}
       >
