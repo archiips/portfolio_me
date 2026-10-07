@@ -37,9 +37,12 @@ function easeOutCubic(t: number) {
 function CameraIntro({
   controls,
   mobile,
+  started,
 }: {
   controls: React.RefObject<OrbitControlsImpl | null>;
   mobile: boolean;
+  /** The room loads behind the boot screen; the zoom waits for this. */
+  started: boolean;
 }) {
   const { camera, size } = useThree();
   const t = useRef(0);
@@ -56,10 +59,10 @@ function CameraIntro({
       controls.current.target.copy(target);
       controls.current.enabled = false;
     }
-  }, [camera, controls, target]);
+  }, [camera, controls, target, started]);
 
   useFrame((_, dt) => {
-    if (t.current >= 1) return;
+    if (!started || t.current >= 1) return;
     t.current = Math.min(1, t.current + dt / INTRO_SECONDS);
     const k = easeOutCubic(t.current);
     camera.position.lerpVectors(CAM_START, end, k);
@@ -103,11 +106,13 @@ function MirrorFloor() {
 
 interface RoomSceneProps {
   onSelect: (s: Section) => void;
+  /** False while the boot/hello screens cover the room. */
+  started?: boolean;
   /** An overlay is open: stop rendering and blur the frozen frame. */
   paused?: boolean;
 }
 
-export default function RoomScene({ onSelect, paused = false }: RoomSceneProps) {
+export default function RoomScene({ onSelect, paused = false, started = true }: RoomSceneProps) {
   const [hovered, setHovered] = useState<Section | null>(null);
   const controls = useRef<OrbitControlsImpl>(null);
   const [mobile, setMobile] = useState(false);
@@ -154,7 +159,7 @@ export default function RoomScene({ onSelect, paused = false }: RoomSceneProps) 
             onSelect={onSelect}
           />
           <MirrorFloor />
-          <CameraIntro controls={controls} mobile={mobile} />
+          <CameraIntro controls={controls} mobile={mobile} started={started} />
         </Suspense>
 
         <OrbitControls

@@ -4,30 +4,37 @@ import { useEffect, useState } from "react";
 
 interface BootSequenceProps {
   onComplete: () => void;
+  /** Real loading progress (0-100), e.g. the 3D room. The bar never runs
+   *  ahead of it, so the boot ends when the content is actually ready. */
+  loaded?: number;
 }
 
-export default function BootSequence({ onComplete }: BootSequenceProps) {
-  const [progress, setProgress] = useState(0);
+export default function BootSequence({ onComplete, loaded = 100 }: BootSequenceProps) {
+  const [elapsed, setElapsed] = useState(0);
+  const [timedOut, setTimedOut] = useState(false);
+  // Never hold the visitor on the boot screen for a slow or failed download.
+  const progress = timedOut ? 100 : Math.min(elapsed, loaded);
 
   useEffect(() => {
-    const duration = 2500; // 2.5 seconds
-    const interval = 50; // Update every 50ms
+    const t = setTimeout(() => setTimedOut(true), 8000);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    const duration = 2500; // minimum boot time
+    const interval = 50;
     const step = 100 / (duration / interval);
-
     const timer = setInterval(() => {
-      setProgress((prev) => {
-        const next = prev + step;
-        if (next >= 100) {
-          clearInterval(timer);
-          setTimeout(onComplete, 300);
-          return 100;
-        }
-        return next;
-      });
+      setElapsed((prev) => Math.min(100, prev + step));
     }, interval);
-
     return () => clearInterval(timer);
-  }, [onComplete]);
+  }, []);
+
+  useEffect(() => {
+    if (progress < 100) return;
+    const t = setTimeout(onComplete, 300);
+    return () => clearTimeout(t);
+  }, [progress, onComplete]);
 
   return (
     <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-50">
