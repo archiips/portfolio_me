@@ -205,6 +205,14 @@ def bake_object(obj, size, tag):
                  next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL').inputs["Surface"])
     obj.data.materials.clear()
     obj.data.materials.append(mat)
+
+    # Joining merges every source UV layer, which pushed "Bake" to index 4.
+    # Three.js only reads UV sets 0-3, so the shader failed with
+    # "'uv4' : undeclared identifier" and the room rendered blank. The other
+    # layers were only needed to sample the ORIGINAL textures during the bake,
+    # so drop them now and "Bake" becomes set 0.
+    for name in [u.name for u in obj.data.uv_layers if u.name != "Bake"]:
+        obj.data.uv_layers.remove(obj.data.uv_layers[name])
     return img
 
 
