@@ -5,7 +5,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { AdaptiveDpr, OrbitControls, PerformanceMonitor, Preload } from "@react-three/drei";
+import { OrbitControls, Preload } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import RoomModel from "./RoomModel";
 import NavText from "./NavText";
@@ -94,10 +94,6 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
   const markKeysUsed = useCallback(() => setKeysUsed(true), []);
   const [shiftLock, setShiftLock] = useState(false);
   const [lookArmed, setLookArmed] = useState(false);
-  // Resolution follows the frame rate: the room is drawn twice a frame (the
-  // mirror floor), and on a laptop GPU at 1.5x that dropped frames, which the
-  // damped orbit turned into visible jitter.
-  const [dpr, setDpr] = useState(1.25);
 
   useEffect(() => {
     const check = () => setMobile(window.innerWidth / window.innerHeight < 0.9);
@@ -113,7 +109,9 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
         // GPU to itself and the blur below is applied to a still image.
         frameloop={paused ? "never" : "always"}
         gl={{ antialias: true, powerPreference: "high-performance" }}
-        dpr={dpr}
+        // One fixed resolution. Adapting it to the frame rate resized the
+        // canvas every time it changed, which itself read as camera stutter.
+        dpr={[1, 1.25]}
         camera={{ position: CAM_START.toArray(), fov: 40, near: 0.1, far: 120 }}
         onCreated={({ gl, scene }) => {
           // Same view transform the Blender scene is graded in (AgX, -0.3 EV).
@@ -127,14 +125,6 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
           transition: "filter 350ms ease-out",
         }}
       >
-        <PerformanceMonitor
-          bounds={() => [45, 58]}
-          onDecline={() => setDpr((d) => Math.max(0.8, +(d - 0.15).toFixed(2)))}
-          onIncline={() => setDpr((d) => Math.min(1.5, +(d + 0.1).toFixed(2)))}
-          flipflops={3}
-          onFallback={() => setDpr(0.9)}
-        />
-        <AdaptiveDpr pixelated={false} />
         {/* Nearly everything is lit by its baked textures. These only shape
             the panda and the steam, which are animated and so not baked. */}
         <ambientLight intensity={0.9} color="#FFE7BF" />
