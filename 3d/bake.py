@@ -44,6 +44,10 @@ NAV = {"projects": "projects", "aboutme": "Poster_Messi", "education": "educatio
 # Messi poster's 1024px bake came back black in the full run.
 PICTURES = {"Poster_Messi": 0.92, "Vinyl_Sleeve": 0.85}   # name -> brightness
 
+# The garland's polaroids keep their own UVs and image and are shown unlit.
+# Baked, they sat under the corner spotlight and came out washed to white.
+UV_PICTURES = {f"{k:02d}": 0.9 for k in range(1, 11)}
+
 # Animated in the browser, so it must not leave a baked shadow on the floor.
 NO_SHADOW_ROOTS = ("Panda",)
 
@@ -104,7 +108,7 @@ def collect():
         if not root:
             log(f"  nav '{section}': object '{objname}' not found, skipping")
             continue
-        ms = [o for o in descendants(root) if usable(o)]
+        ms = [o for o in descendants(root) if usable(o) and o.name not in UV_PICTURES]
         if ms:
             nav_sets[section] = ms
             nav_members.update(o.name for o in ms)
@@ -113,7 +117,7 @@ def collect():
     for o in bpy.data.objects:
         if not usable(o):
             continue
-        if (o.name in nav_members or o.name in PICTURES or animated(o)
+        if (o.name in nav_members or o.name in PICTURES or o.name in UV_PICTURES or animated(o)
                 or o.name.startswith("steam_")):
             continue
         rest.append(o)
@@ -325,6 +329,37 @@ def group_by_asset(objs):
     return out
 
 
+def uv_picture_material(obj, brightness):
+    """Unlit image on the mesh's existing UV map (the garland polaroids)."""
+    src = obj.material_slots[0].material if obj.material_slots else None
+    img = next((n.image for n in src.node_tree.nodes if n.type == 'TEX_IMAGE'), None) if src else None
+    if img is None:
+        log(f"  {obj.name}: no image found, leaving as is")
+        return
+    me = obj.data
+    keep = me.uv_layers.active or me.uv_layers[0]
+    for u in [u for u in me.uv_layers if u != keep]:
+        me.uv_layers.remove(u)
+    me.uv_layers[0].name = "Bake"
+    mat = bpy.data.materials.new(f"Picture_{obj.name}")
+    mat.use_nodes = True
+    nt = mat.node_tree
+    for n in list(nt.nodes):
+        if n.type != 'OUTPUT_MATERIAL':
+            nt.nodes.remove(n)
+    bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.inputs["Base Color"].default_value = (0, 0, 0, 1)
+    bsdf.inputs["Roughness"].default_value = 1.0
+    bsdf.inputs["Emission Strength"].default_value = brightness
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = img
+    nt.links.new(tex.outputs["Color"], bsdf.inputs["Emission Color"])
+    nt.links.new(bsdf.outputs["BSDF"],
+                 next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL').inputs["Surface"])
+    me.materials.clear()
+    me.materials.append(mat)
+
+
 def decimate_all(objs):
     n = 0
     for o in objs:
@@ -484,6 +519,15 @@ def main():
     nav_sets, rest = collect()
     batches = group_by_asset(rest)        # needs the hierarchy, so before unparenting
     unparent_all(rest + [o for ms in nav_sets.values() for o in ms])
+
+    for name, brightness in UV_PICTURES.items():
+        o = bpy.data.objects.get(name)
+        if o and o.type == 'MESH':
+            mw = o.matrix_world.copy()
+            o.parent = None
+            o.matrix_world = mw
+            uv_picture_material(o, brightness * LIGHT_SCALE)
+    log(f"garland polaroids shown unlit: {len(UV_PICTURES)}")
 
     for name, brightness in PICTURES.items():
         o = bpy.data.objects.get(name)
