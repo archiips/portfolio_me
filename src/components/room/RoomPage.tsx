@@ -64,7 +64,7 @@ export default function RoomPage() {
       <WorkOverlay open={open === "work"} onClose={close} />
       <EducationOverlay open={open === "education"} onClose={close} />
       <ContactOverlay open={open === "contact"} onClose={close} />
-      <PhotoStack isOpen={open === "photos"} onClose={close} />
+      <PhotoStack isOpen={open === "photos"} onClose={close} preload={phase === "room"} />
     </main>
   );
 }

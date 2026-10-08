@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { sniglet } from "../fonts";
 
@@ -12,13 +12,16 @@ interface OverlayProps {
 }
 
 // Shared shell: blurred room behind, "click anywhere to close!" on top, Esc
-// closes too. Clicks inside the content don't bubble out.
+// closes too. Clicks inside the content don't bubble out, and a press that
+// starts inside (like dragging a photo) never closes it when released outside.
 export default function Overlay({
   open,
   onClose,
   children,
   hint = "click anywhere to close!",
 }: OverlayProps) {
+  const pressedOutside = useRef(false);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -35,7 +38,8 @@ export default function Overlay({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, transition: { duration: 0.22, delay: 0.12 } }}
           transition={{ duration: 0.25 }}
-          onClick={onClose}
+          onPointerDown={() => (pressedOutside.current = true)}
+          onClick={() => pressedOutside.current && onClose()}
         >
           {/* No backdrop-filter here: blurring the live WebGL canvas every frame
               is what made the openings stutter. RoomScene freezes and blurs
@@ -49,7 +53,14 @@ export default function Overlay({
           >
             {hint}
           </motion.p>
-          <div className="relative z-10 my-auto" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="relative z-10 my-auto"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              pressedOutside.current = false;
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             {children}
           </div>
         </motion.div>

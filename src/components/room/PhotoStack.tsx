@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   AnimatePresence,
+  animate,
   motion,
   useMotionValue,
   useTransform,
@@ -13,11 +14,26 @@ import { assetPath } from "@/lib/utils";
 import Overlay from "./overlays/Overlay";
 
 // Archit's photos, the same ones pinned on the garland in the room
-// (public/photos, 1200px). Captions can be added here.
+// (public/photos, 800px). Captions can be added here.
 const PHOTOS = Array.from({ length: 10 }, (_, i) => ({
   src: assetPath(`/photos/${String(i + 1).padStart(2, "0")}.jpg`),
   caption: "",
 }));
+
+// Photos fetched and decoded ahead of time, kept referenced so the browser
+// holds on to the decoded pixels. Without this the first opening decoded
+// every image in the middle of the fall and stuttered.
+const decoded = new Map<string, Promise<void>>();
+function loadPhoto(src: string) {
+  let p = decoded.get(src);
+  if (!p) {
+    const img = new Image();
+    img.src = src;
+    p = img.decode().catch(() => {});
+    decoded.set(src, p);
+  }
+  return p;
+}
 
 const VISIBLE = 4; // cards drawn in the pile
 // Resting pose for each depth in the pile: a messy, slightly fanned stack.
@@ -29,6 +45,7 @@ const SLOT = [
 ];
 const SWIPE_DISTANCE = 110;
 const SWIPE_VELOCITY = 500;
+const SPRING = { type: "spring", stiffness: 300, damping: 30, mass: 0.9 } as const;
 
 function label(i: number) {
   return `${String(i + 1).padStart(2, "0")} / ${PHOTOS.length}`;
@@ -63,21 +80,26 @@ interface CardProps {
 }
 
 function Card({ photo, depth, dir, intro, onSwipe }: CardProps) {
-  const x = useMotionValue(0);
-  // Tilt with the drag, like holding a photo by its bottom edge.
-  const dragRotate = useTransform(x, [-300, 0, 300], [-16, 0, 16]);
   const isTop = depth === 0;
   const slot = SLOT[depth];
+  // Every card owns its x, so moving between the top and the pile never
+  // swaps the value driving it (which made cards jump).
+  const x = useMotionValue(0);
+  // Drag offset, kept apart from x so the tilt only follows the hand.
+  const dragX = useMotionValue(0);
+  // Tilt with the drag, like holding a photo by its bottom edge.
+  const dragRotate = useTransform(dragX, [-300, 0, 300], [-16, 0, 16]);
 
   const onDragEnd = (_: unknown, info: PanInfo) => {
     if (info.offset.x < -SWIPE_DISTANCE || info.velocity.x < -SWIPE_VELOCITY) onSwipe(1);
     else if (info.offset.x > SWIPE_DISTANCE || info.velocity.x > SWIPE_VELOCITY) onSwipe(-1);
+    else animate(dragX, 0, SPRING);
   };
 
   return (
     <motion.div
-      className={`absolute inset-0 ${isTop ? "cursor-grab active:cursor-grabbing" : ""}`}
-      style={{ zIndex: VISIBLE - depth, x: isTop ? x : undefined }}
+      className="absolute inset-0"
+      style={{ zIndex: VISIBLE - depth, x }}
       custom={dir}
       variants={{
         // On open, each card is unpinned from the garland above and falls
@@ -89,12 +111,9 @@ function Card({ photo, depth, dir, intro, onSwipe }: CardProps) {
         joining: { ...SLOT[VISIBLE - 1], y: SLOT[VISIBLE - 1].y + 20, opacity: 0 },
         rest: {
           ...slot,
-          x: isTop ? 0 : slot.x,
           opacity: 1,
           transition: {
-            type: "spring",
-            stiffness: 210,
-            damping: 22,
+            ...SPRING,
             delay: intro ? (VISIBLE - 1 - depth) * 0.12 + 0.15 : 0,
           },
         },
@@ -102,19 +121,23 @@ function Card({ photo, depth, dir, intro, onSwipe }: CardProps) {
           x: d > 0 ? -560 : 560,
           rotate: d > 0 ? -24 : 24,
           opacity: 0,
-          transition: { duration: 0.35, ease: "easeOut" },
+          transition: { duration: 0.32, ease: [0.32, 0, 0.67, 0] },
         }),
       }}
       initial={intro ? "unpinned" : isTop && dir < 0 ? "returning" : "joining"}
       animate="rest"
       exit={isTop ? "gone" : { opacity: 0, transition: { duration: 0.2 } }}
-      drag={isTop ? "x" : false}
-      dragElastic={0.85}
-      dragConstraints={{ left: 0, right: 0 }}
-      onDragEnd={isTop ? onDragEnd : undefined}
-      whileDrag={{ scale: 1.03 }}
     >
-      <motion.div className="h-full w-full" style={{ rotate: isTop ? dragRotate : 0 }}>
+      {/* The hand-held layer: drags on its own value with no constraints, so
+          letting go never fights the fly-off animation. */}
+      <motion.div
+        className={`h-full w-full ${isTop ? "cursor-grab active:cursor-grabbing" : ""}`}
+        style={{ x: dragX, rotate: dragRotate }}
+        drag={isTop ? "x" : false}
+        dragMomentum={false}
+        onDragEnd={isTop ? onDragEnd : undefined}
+        whileDrag={{ scale: 1.03 }}
+      >
         <Polaroid i={photo} />
       </motion.div>
     </motion.div>
@@ -124,13 +147,33 @@ function Card({ photo, depth, dir, intro, onSwipe }: CardProps) {
 interface PhotoStackProps {
   isOpen: boolean;
   onClose: () => void;
+  // True once the room is up: photos then load quietly in the background.
+  preload?: boolean;
 }
 
-export default function PhotoStack({ isOpen, onClose }: PhotoStackProps) {
+export default function PhotoStack({ isOpen, onClose, preload = false }: PhotoStackProps) {
   const n = PHOTOS.length;
   // [index of the top card, direction of the last move]
   const [[index, dir], setPage] = useState<[number, number]>([0, 0]);
   const [intro, setIntro] = useState(true);
+
+  // Until the first few photos are decoded the pile stays empty, so the fall
+  // starts a moment late rather than stuttering (waits at most a second).
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (preload || isOpen) PHOTOS.forEach(({ src }) => loadPhoto(src));
+  }, [preload, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || ready) return;
+    let live = true;
+    const first = Promise.all(PHOTOS.slice(0, VISIBLE).map(({ src }) => loadPhoto(src)));
+    Promise.race([first, new Promise((r) => setTimeout(r, 1000))]).then(() => live && setReady(true));
+    return () => {
+      live = false;
+    };
+  }, [isOpen, ready]);
 
   const paginate = useCallback(
     (d: number) => {
@@ -163,11 +206,12 @@ export default function PhotoStack({ isOpen, onClose }: PhotoStackProps) {
       <div className="flex flex-col items-center gap-8">
         <div className="relative aspect-[430/512] h-[min(62vh,500px)]">
           <AnimatePresence custom={dir} initial>
-            {pile
-              .map((photo, depth) => (
-                <Card key={photo} photo={photo} depth={depth} dir={dir} intro={intro} onSwipe={paginate} />
-              ))
-              .reverse()}
+            {ready &&
+              pile
+                .map((photo, depth) => (
+                  <Card key={photo} photo={photo} depth={depth} dir={dir} intro={intro} onSwipe={paginate} />
+                ))
+                .reverse()}
           </AnimatePresence>
         </div>
 
