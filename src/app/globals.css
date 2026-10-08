@@ -110,18 +110,7 @@ body {
 .room-walk.done { animation: room-walk-end 0.45s ease-out forwards; }
 .room-walk.done .room-bob { animation-play-state: paused; }
 
-/* "Lights on": the loader's mask opens from the centre. A registered custom
-   property lets CSS itself interpolate the radius, off the main thread's
-   critical path, while the room starts rendering underneath. */
-@property --room-hole {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: -18vmax;
-}
-.room-loader {
-  --room-hole: -18vmax;
-  -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent var(--room-hole), #000 calc(var(--room-hole) + 18vmax));
-  mask-image: radial-gradient(circle at 50% 50%, transparent var(--room-hole), #000 calc(var(--room-hole) + 18vmax));
-  transition: --room-hole 1.1s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.room-loader.lights-on { --room-hole: 160vmax; }
+/* "Lights on" (the loader's mask opening from the centre) is driven from
+   RoomLoader in JS. A CSS @property transition did this before, but Safari
+   rendered that mask nearly transparent while the loader still caught every
+   click, so the room looked loaded but would not move. */

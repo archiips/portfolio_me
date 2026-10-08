@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { sniglet } from "./fonts";
 import { enter } from "./overlays/motion";
@@ -19,6 +19,27 @@ const LINES = [
   "racing the hot wheels…",
 ];
 const MIN_MS = 2800; // even when cached, the loader plays for a few seconds
+const LIGHTS_MS = 1100; // the light opening up from the middle
+const EDGE = 18; // soft edge of the light, in vmax
+
+// Open a soft-edged hole in the middle of the loader, from nothing to past
+// the corners. Written straight to the mask each frame: Safari mishandled the
+// CSS @property transition this used to be and left the loader invisible but
+// still covering the room. Until "come on in" the loader has no mask at all.
+function lightsOn(el: HTMLElement) {
+  const start = performance.now();
+  const step = (now: number) => {
+    const t = Math.min(1, (now - start) / LIGHTS_MS);
+    const k = 1 - Math.pow(1 - t, 4); // ease out
+    const vmax = Math.max(window.innerWidth, window.innerHeight) / 100;
+    const hole = (-EDGE + k * (160 + EDGE)) * vmax;
+    const mask = `radial-gradient(circle at 50% 50%, transparent ${hole}px, #000 ${hole + EDGE * vmax}px)`;
+    el.style.webkitMaskImage = mask;
+    el.style.maskImage = mask;
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
 
 function Panda() {
   // the same little panda as the envelope stamp, walking
@@ -61,11 +82,10 @@ export default function RoomLoader({ loaded, onEnter }: RoomLoaderProps) {
   const [line, setLine] = useState(0);
   const [leaving, setLeaving] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
   // Never keep a visitor here on a slow or failed download.
   const done = loaded >= 100 || timedOut;
   const ready = minDone && done;
-
-
 
   useEffect(() => {
     const t = setTimeout(() => setMinDone(true), MIN_MS);
@@ -82,7 +102,8 @@ export default function RoomLoader({ loaded, onEnter }: RoomLoaderProps) {
   const go = () => {
     if (!ready || leaving) return;
     setLeaving(true);
-    onEnter(); // start the camera zoom while the light opens up (CSS, .lights-on)
+    if (root.current) lightsOn(root.current);
+    onEnter(); // start the camera zoom while the light opens up
   };
 
   useEffect(() => {
@@ -93,7 +114,8 @@ export default function RoomLoader({ loaded, onEnter }: RoomLoaderProps) {
 
   return (
     <div
-      className={`room-loader fixed inset-0 z-50 flex flex-col items-center justify-center ${leaving ? "lights-on" : ""} ${sniglet.className}`}
+      ref={root}
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center ${sniglet.className}`}
       style={{
         background: `radial-gradient(ellipse at 50% 45%, #2b241d 0%, ${BG} 60%)`,
         pointerEvents: leaving ? "none" : "auto",
