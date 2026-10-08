@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Music2 } from "lucide-react";
 import { aboutMe } from "@/lib/projects";
@@ -101,12 +101,44 @@ function Conversation() {
     };
   }, [shown]);
 
+  // Follow the conversation down as it grows (new bubbles, typing dots, the
+  // photo loading in), unless the visitor has scrolled up to reread.
+  const scroller = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const following = useRef(true);
+  const lastTop = useRef(0);
+
+  useEffect(() => {
+    const box = scroller.current;
+    if (!box || !content.current) return;
+    const ro = new ResizeObserver(() => {
+      if (following.current) box.scrollTo({ top: box.scrollHeight, behavior: "smooth" });
+    });
+    ro.observe(content.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const onScroll = () => {
+    // Only a move up means the visitor took over; our own smooth scrolls only
+    // go down. Reaching the bottom again picks the conversation back up.
+    const box = scroller.current!;
+    if (box.scrollTop < lastTop.current) following.current = false;
+    if (box.scrollHeight - box.scrollTop - box.clientHeight < 60) following.current = true;
+    lastTop.current = box.scrollTop;
+  };
+
   return (
-    <div className="flex flex-col gap-2 overflow-y-auto px-4 pb-5 pt-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {SCRIPT.slice(0, shown).map((m, k) => (
-        <Bubble key={k} m={m} />
-      ))}
-      <AnimatePresence>{typing && <Typing key="typing" />}</AnimatePresence>
+    <div
+      ref={scroller}
+      onScroll={onScroll}
+      className="min-h-0 flex-1 overflow-y-auto px-4 pb-5 pt-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
+      <div ref={content} className="flex flex-col gap-2">
+        {SCRIPT.slice(0, shown).map((m, k) => (
+          <Bubble key={k} m={m} />
+        ))}
+        <AnimatePresence>{typing && <Typing key="typing" />}</AnimatePresence>
+      </div>
     </div>
   );
 }
