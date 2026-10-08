@@ -32,6 +32,8 @@ const KEYMAP: Record<string, string> = {
 
 interface Props {
   controls: React.RefObject<OrbitControlsImpl | null>;
+  /** True while the landing zoom runs; cleared here when the user takes over. */
+  intro: React.RefObject<boolean>;
   enabled: boolean;
   onUsed?: () => void;
   onShiftLock?: (on: boolean) => void;
@@ -39,7 +41,7 @@ interface Props {
   onArmed?: (armed: boolean) => void;
 }
 
-export default function KeyboardControls({ controls, enabled, onUsed, onShiftLock, onArmed }: Props) {
+export default function KeyboardControls({ controls, intro, enabled, onUsed, onShiftLock, onArmed }: Props) {
   const { camera, gl } = useThree();
   const held = useRef(new Set<string>());
   const look = useRef({ dx: 0, dy: 0 });
@@ -54,6 +56,7 @@ export default function KeyboardControls({ controls, enabled, onUsed, onShiftLoc
       const on = document.pointerLockElement === canvas;
       locked.current = on;
       if (on) {
+        intro.current = false; // stop the landing zoom where it is
         setArmed(false);
         settle = 2;
         look.current.dx = look.current.dy = 0;
@@ -143,7 +146,7 @@ export default function KeyboardControls({ controls, enabled, onUsed, onShiftLoc
       window.removeEventListener("keydown", onShift);
       canvas.removeEventListener("pointerdown", onArmedClick, { capture: true });
     };
-  }, [gl, camera, controls, enabled, onShiftLock, onArmed]);
+  }, [gl, camera, controls, intro, enabled, onShiftLock, onArmed]);
 
   // An overlay opening (or the loader) releases the lock.
   useEffect(() => {
@@ -192,11 +195,14 @@ export default function KeyboardControls({ controls, enabled, onUsed, onShiftLoc
         e.x = THREE.MathUtils.clamp(e.x - dy * LOOK_SPEED, -1.45, 1.45);
         camera.quaternion.setFromEuler(e);
       }
-    } else if (!c.enabled) {
-      return; // camera intro still running
     }
 
     if (keys.size === 0) return;
+    if (intro.current) {
+      // keys during the landing zoom: stop it here and hand over
+      intro.current = false;
+      c.enabled = true;
+    }
 
     // W/S fly exactly where the camera looks (look down + W goes down);
     // A/D strafe stays level so sideways never drifts up or down

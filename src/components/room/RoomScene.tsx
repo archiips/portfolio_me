@@ -40,9 +40,13 @@ function CameraIntro({
   controls,
   mobile,
   started,
+  intro,
 }: {
   controls: React.RefObject<OrbitControlsImpl | null>;
   mobile: boolean;
+  /** Shared flag: the zoom is running. Anything that takes the camera
+   *  (keys, mouse look, a drag) clears it and the zoom stops where it is. */
+  intro: React.RefObject<boolean>;
   /** The room loads behind the boot screen; the zoom waits for this. */
   started: boolean;
 }) {
@@ -57,21 +61,30 @@ function CameraIntro({
   useEffect(() => {
     camera.position.copy(CAM_START);
     t.current = 0;
+    intro.current = true;
     if (controls.current) {
       controls.current.target.copy(target);
       controls.current.enabled = false;
     }
-  }, [camera, controls, target, started]);
+  }, [camera, controls, target, started, intro]);
 
   useFrame((_, dt) => {
     if (!started || t.current >= 1) return;
+    if (!intro.current) {
+      // taken over mid-zoom: leave the camera where it is
+      t.current = 1;
+      return;
+    }
     t.current = Math.min(1, t.current + dt / INTRO_SECONDS);
     const k = easeOutCubic(t.current);
     camera.position.lerpVectors(CAM_START, end, k);
     camera.lookAt(target);
     if (controls.current) {
       controls.current.target.copy(target);
-      if (t.current >= 1) controls.current.enabled = true;
+      if (t.current >= 1) {
+        controls.current.enabled = true;
+        intro.current = false;
+      }
       controls.current.update();
     }
   });
@@ -89,6 +102,7 @@ interface RoomSceneProps {
 export default function RoomScene({ onSelect, paused = false, started = true }: RoomSceneProps) {
   const [hovered, setHovered] = useState<Section | null>(null);
   const controls = useRef<OrbitControlsImpl>(null);
+  const intro = useRef(true);
   const [mobile, setMobile] = useState(false);
   const [keysUsed, setKeysUsed] = useState(false);
   const markKeysUsed = useCallback(() => setKeysUsed(true), []);
@@ -144,11 +158,11 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
             <NavText ghost mobile={mobile} hovered={hovered} onHover={setHovered} onSelect={onSelect} />
           </Mirrored>
           <MirrorSheet color={BG} />
-          <CameraIntro controls={controls} mobile={mobile} started={started} />
+          <CameraIntro controls={controls} mobile={mobile} started={started} intro={intro} />
           {/* Compile every shader and upload every texture as soon as the
               model arrives (during the boot screen), not on first view. */}
           <Preload all />
-          <KeyboardControls controls={controls} enabled={started && !paused} onUsed={markKeysUsed} onShiftLock={setShiftLock} onArmed={setLookArmed} />
+          <KeyboardControls controls={controls} intro={intro} enabled={started && !paused} onUsed={markKeysUsed} onShiftLock={setShiftLock} onArmed={setLookArmed} />
         </Suspense>
 
         <OrbitControls
