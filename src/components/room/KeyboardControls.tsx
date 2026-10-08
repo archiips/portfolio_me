@@ -53,7 +53,11 @@ export default function KeyboardControls({ controls, enabled, onUsed, onShiftLoc
     const onLockChange = () => {
       const on = document.pointerLockElement === canvas;
       locked.current = on;
-      if (on) setArmed(false);
+      if (on) {
+        setArmed(false);
+        settle = 2;
+        look.current.dx = look.current.dy = 0;
+      }
       const c = controls.current;
       if (on) {
         euler.current.setFromQuaternion(camera.quaternion, "YXZ");
@@ -71,8 +75,17 @@ export default function KeyboardControls({ controls, enabled, onUsed, onShiftLoc
       }
       onShiftLock?.(on);
     };
+    // Chrome often reports a huge bogus jump in the first events after a
+    // pointer lock (and occasionally later), which spun the camera on the
+    // first Shift. Skip the first events and drop impossible jumps.
+    let settle = 0;
     const onMove = (e: MouseEvent) => {
       if (!locked.current) return;
+      if (settle > 0) {
+        settle--;
+        return;
+      }
+      if (Math.abs(e.movementX) > 160 || Math.abs(e.movementY) > 160) return;
       look.current.dx += e.movementX;
       look.current.dy += e.movementY;
     };
@@ -86,8 +99,14 @@ export default function KeyboardControls({ controls, enabled, onUsed, onShiftLoc
     };
     const request = () => {
       try {
-        const p = canvas.requestPointerLock?.() as unknown as Promise<void> | undefined;
-        p?.catch?.(() => setArmed(true));
+        // raw input (no OS acceleration) avoids the spikes where supported
+        const req = canvas.requestPointerLock as unknown as (o?: object) => Promise<void> | undefined;
+        const p = req.call(canvas, { unadjustedMovement: true });
+        p?.catch?.(() => {
+          // unadjustedMovement unsupported or no gesture: plain lock, else arm
+          const p2 = req.call(canvas);
+          p2?.catch?.(() => setArmed(true));
+        });
       } catch {
         setArmed(true);
       }
