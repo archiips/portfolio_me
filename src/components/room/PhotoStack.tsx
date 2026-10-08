@@ -12,8 +12,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { assetPath } from "@/lib/utils";
 import Overlay from "./overlays/Overlay";
 
-// Placeholder set: the 10 polaroids on the garland in the room. Swap in your
-// own by replacing the files in public/photos (and adding captions here).
+// Archit's photos, the same ones pinned on the garland in the room
+// (public/photos, 1200px). Captions can be added here.
 const PHOTOS = Array.from({ length: 10 }, (_, i) => ({
   src: assetPath(`/photos/${String(i + 1).padStart(2, "0")}.jpg`),
   caption: "",
@@ -34,21 +34,22 @@ function label(i: number) {
   return `${String(i + 1).padStart(2, "0")} / ${PHOTOS.length}`;
 }
 
-// The garland's photos are already polaroids (white border included), so the
-// image is the whole card. Your own photos get the same treatment.
+// A polaroid: white frame, square photo cropped from the original, number in
+// the wide bottom margin.
 function Polaroid({ i }: { i: number }) {
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-[4px] bg-[#FBF8F2] shadow-[0_18px_40px_rgba(0,0,0,0.45)]">
+    <div className="flex h-full w-full flex-col rounded-[4px] bg-[#FBF8F2] p-[6%] pb-0 shadow-[0_18px_40px_rgba(0,0,0,0.45)]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={PHOTOS[i].src}
         alt={PHOTOS[i].caption || `Photo ${i + 1}`}
         draggable={false}
-        className="h-full w-full select-none object-cover"
+        className="aspect-square w-full select-none rounded-[2px] object-cover"
       />
-      <span className="absolute bottom-3 right-4 text-sm text-[#5b4a3a]/70 [font-family:var(--font-sniglet)]">
-        {PHOTOS[i].caption || label(i)}
-      </span>
+      <div className="flex flex-1 items-center justify-between px-1 text-sm text-[#5b4a3a] [font-family:var(--font-sniglet)]">
+        <span>{PHOTOS[i].caption}</span>
+        <span className="opacity-60">{label(i)}</span>
+      </div>
     </div>
   );
 }
