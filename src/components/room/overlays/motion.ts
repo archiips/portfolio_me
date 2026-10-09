@@ -10,3 +10,10 @@ export const enter = (delay = 0, duration = 0.55) => ({
 });
 
 export const leave = (delay = 0) => ({ duration: 0.22, delay, ease: EASE_IN });
+
+// Spread onto every motion element that animates opacity. Motion hands opacity
+// to the browser's animation engine (WAAPI); when one finishes it cancels it
+// and only writes the final value on its next frame, and Safari paints the
+// frame in between with the start value. That flashed whole overlays in and
+// out on open/close. Any onUpdate makes motion animate the value itself.
+export const jsAnimated = { onUpdate: () => {} };

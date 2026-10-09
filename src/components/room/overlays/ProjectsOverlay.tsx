@@ -5,7 +5,7 @@ import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import { ExternalLink, Github, Undo2 } from "lucide-react";
 import { projects, type Project } from "@/lib/projects";
 import Overlay from "./Overlay";
-import { EASE_OUT, enter, leave } from "./motion";
+import { EASE_OUT, enter, leave, jsAnimated } from "./motion";
 
 // Projects as records in a crate, a nod to the Talk To You vinyl on the wall.
 // Flip through the sleeves, pull one out and the record slides out and spins
@@ -74,6 +74,7 @@ function Record({ i, title }: { i: number; title: string }) {
   const [a] = ART[i % ART.length];
   return (
     <motion.div
+      {...jsAnimated}
       className="relative h-full w-full rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
       style={{
         background:
@@ -100,6 +101,7 @@ function Record({ i, title }: { i: number; title: string }) {
 function Crate({ onPick, hidden }: { onPick: (i: number) => void; hidden: boolean }) {
   return (
     <motion.div
+      {...jsAnimated}
       className="relative mx-auto w-[min(94vw,900px)] pt-16 [grid-area:1/1] self-center"
       style={{ pointerEvents: hidden ? "none" : "auto" }}
       initial={{ opacity: 0, y: 40 }}
@@ -115,6 +117,7 @@ function Crate({ onPick, hidden }: { onPick: (i: number) => void; hidden: boolea
           {projects.map((p, i) => (
             <motion.button
               key={p.id}
+              {...jsAnimated}
               layoutId={`sleeve-${p.id}`}
               onClick={() => onPick(i)}
               aria-label={`Open ${p.title}`}
@@ -148,25 +151,28 @@ function Detail({ i, onBack }: { i: number; onBack: () => void }) {
   return (
     <motion.div
       key="detail"
+      {...jsAnimated}
       className="mx-auto flex w-[min(94vw,980px)] flex-col items-center gap-8 self-center [grid-area:1/1] md:flex-row md:items-start"
       exit={{ opacity: 0, transition: leave() }}
     >
       <div className="relative aspect-square w-[min(70vw,320px)] shrink-0">
         {/* the record slides out from behind the sleeve, then keeps spinning */}
         <motion.div
+          {...jsAnimated}
           className="absolute inset-[4%]"
           initial={{ x: 0 }}
           animate={{ x: "38%", transition: enter(0.35, 0.7) }}
         >
           <Record i={i} title={p.title} />
         </motion.div>
-        <motion.div layoutId={`sleeve-${p.id}`} className="absolute inset-0 z-10" transition={{ duration: 0.5, ease: EASE_OUT }}>
+        <motion.div layoutId={`sleeve-${p.id}`} className="absolute inset-0 z-10" transition={{ duration: 0.5, ease: EASE_OUT }} {...jsAnimated}>
           <Sleeve p={p} i={i} big />
         </motion.div>
       </div>
 
       {/* liner notes */}
       <motion.div
+        {...jsAnimated}
         className="max-w-lg rounded-md bg-[#F4ECDD] p-6 text-[#3b3129] shadow-xl md:ml-24"
         initial={{ opacity: 0, x: 30 }}
         animate={{ opacity: 1, x: 0, transition: enter(0.3) }}
@@ -179,6 +185,7 @@ function Detail({ i, onBack }: { i: number; onBack: () => void }) {
           {p.technologies.map((t, k) => (
             <motion.li
               key={t}
+              {...jsAnimated}
               className="flex gap-2"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0, transition: enter(0.45 + k * 0.04, 0.4) }}

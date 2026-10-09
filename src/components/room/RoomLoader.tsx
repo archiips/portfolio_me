@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { sniglet } from "./fonts";
-import { enter } from "./overlays/motion";
+import { enter, jsAnimated } from "./overlays/motion";
 
 // The landing screen, in the room's own language: a record spinning while the
 // room loads, the panda walking along the progress line, a few cozy status
@@ -122,6 +122,7 @@ export default function RoomLoader({ loaded, onEnter }: RoomLoaderProps) {
       }}
     >
       <motion.div
+        {...jsAnimated}
         className="flex flex-col items-center"
         initial={{ opacity: 0, y: 14 }}
         animate={leaving ? { opacity: 0, scale: 0.94 } : { opacity: 1, y: 0 }}
@@ -149,6 +150,7 @@ export default function RoomLoader({ loaded, onEnter }: RoomLoaderProps) {
             {ready ? (
               <motion.button
                 key="enter"
+                {...jsAnimated}
                 onClick={go}
                 className="rounded-full border border-[#FFDE85]/60 px-7 py-2.5 text-lg text-[#FFDE85] hover:bg-[#FFDE85] hover:text-[#2b211b]"
                 initial={{ opacity: 0, y: 8 }}
@@ -161,6 +163,7 @@ export default function RoomLoader({ loaded, onEnter }: RoomLoaderProps) {
             ) : (
               <motion.p
                 key={line}
+                {...jsAnimated}
                 className="pt-2 text-[#C9BFAF]/80"
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}

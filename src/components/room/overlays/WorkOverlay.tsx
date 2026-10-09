@@ -5,7 +5,7 @@ import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import { aboutMe } from "@/lib/projects";
 import { assetPath } from "@/lib/utils";
 import Overlay from "./Overlay";
-import { EASE_OUT, enter, leave } from "./motion";
+import { EASE_OUT, enter, leave, jsAnimated } from "./motion";
 
 // Work experience as collectible player cards, a nod to the Messi poster and
 // the LeBron figure in the room. Click a card: it lifts out of the fan to the
@@ -98,6 +98,7 @@ function FanCard({ i, onPick, returning }: { i: number; onPick: () => void; retu
   const fan = (i - MID) * 5;
   return (
     <motion.button
+      {...jsAnimated}
       layoutId={`card-${i}`}
       onClick={onPick}
       className={`relative ${CARD_SIZE} shrink-0 cursor-pointer text-left outline-none`}
@@ -122,6 +123,7 @@ function FanCard({ i, onPick, returning }: { i: number; onPick: () => void; retu
 function FocusCard({ i, onClose }: { i: number; onClose: () => void }) {
   return (
     <motion.div
+      {...jsAnimated}
       className="fixed inset-0 z-40 flex items-center justify-center"
       initial={{ backgroundColor: "rgba(20,17,14,0)" }}
       animate={{ backgroundColor: "rgba(20,17,14,0.55)" }}
@@ -129,6 +131,7 @@ function FocusCard({ i, onClose }: { i: number; onClose: () => void }) {
       onClick={onClose}
     >
       <motion.div
+        {...jsAnimated}
         layoutId={`card-${i}`}
         className="relative h-[min(72vh,540px)] w-[min(86vw,400px)] cursor-pointer"
         style={{ perspective: 1400 }}
@@ -139,6 +142,7 @@ function FocusCard({ i, onClose }: { i: number; onClose: () => void }) {
         }}
       >
         <motion.div
+          {...jsAnimated}
           className="relative h-full w-full"
           style={{ transformStyle: "preserve-3d" }}
           initial={{ rotateY: 0 }}
@@ -158,6 +162,7 @@ function FocusCard({ i, onClose }: { i: number; onClose: () => void }) {
 function ResumeFolder() {
   return (
     <motion.a
+      {...jsAnimated}
       href={RESUME_PDF}
       target="_blank"
       rel="noreferrer"
@@ -174,6 +179,7 @@ function ResumeFolder() {
 
       {/* the resume, peeking out */}
       <motion.div
+        {...jsAnimated}
         className="absolute inset-x-6 top-0 h-[190px] rounded-sm bg-[#FBF8F1] px-5 pt-4 shadow-md"
         variants={{ pull: { y: -34, rotate: -1.5 } }}
         transition={{ duration: 0.35, ease: EASE_OUT }}

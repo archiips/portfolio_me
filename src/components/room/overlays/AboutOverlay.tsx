@@ -6,7 +6,7 @@ import { Music2 } from "lucide-react";
 import { aboutMe } from "@/lib/projects";
 import { assetPath } from "@/lib/utils";
 import Overlay from "./Overlay";
-import { enter, leave } from "./motion";
+import { enter, leave, jsAnimated } from "./motion";
 
 // "About me" as a conversation, after the Talk To You record on the wall: the
 // visitor asks, Archit answers, with typing dots before each of his replies.
@@ -34,6 +34,7 @@ function Bubble({ m }: { m: Msg }) {
   const mine = m.from === "me";
   return (
     <motion.div
+      {...jsAnimated}
       className={`flex ${mine ? "justify-start" : "justify-end"}`}
       initial={{ opacity: 0, y: 12, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1, transition: enter(0, 0.35) }}
@@ -58,6 +59,7 @@ function Bubble({ m }: { m: Msg }) {
 function Typing() {
   return (
     <motion.div
+      {...jsAnimated}
       className="flex w-16 items-center justify-center gap-1 rounded-2xl rounded-bl-md bg-[#EFE6D6] py-3"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -147,6 +149,7 @@ export default function AboutOverlay({ open, onClose }: { open: boolean; onClose
   return (
     <Overlay open={open} onClose={onClose}>
       <motion.div
+        {...jsAnimated}
         className="flex h-[min(80vh,700px)] w-[min(92vw,400px)] flex-col overflow-hidden rounded-[38px] border-[10px] border-[#1d1916] bg-[#2a241f] shadow-[0_30px_70px_rgba(0,0,0,0.6)]"
         initial={{ y: 60, opacity: 0, rotate: -2 }}
         animate={{ y: 0, opacity: 1, rotate: 0, transition: enter(0, 0.55) }}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { aboutMe } from "@/lib/projects";
 import Overlay from "./Overlay";
-import { EASE_OUT, enter, leave } from "./motion";
+import { EASE_OUT, enter, leave, jsAnimated } from "./motion";
 
 // Education as a page in a spiral notebook: lined paper, a red margin, the
 // GPA circled in red ink and a gold star sticker for the Dean's List. Tabs on
@@ -72,25 +72,26 @@ function Page({ t }: { t: (typeof TABS)[number] }) {
   return (
     <motion.div
       key={t.id}
+      {...jsAnimated}
       className="relative pl-16 pr-8 text-[#2f3b55] [font-family:var(--font-sniglet)]"
       style={{ lineHeight: `${LINE}px`, paddingTop: LINE * 2 - 6 }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, transition: { duration: 0.15 } }}
     >
-      <motion.p {...line(0)} className="text-2xl">{t.heading}</motion.p>
-      <motion.p {...line(1)} className="text-lg text-[#46526e]">{t.sub}</motion.p>
-      <motion.p {...line(2)} className="text-[#6b7590]">{t.when}</motion.p>
+      <motion.p {...line(0)} className="text-2xl" {...jsAnimated}>{t.heading}</motion.p>
+      <motion.p {...line(1)} className="text-lg text-[#46526e]" {...jsAnimated}>{t.sub}</motion.p>
+      <motion.p {...line(2)} className="text-[#6b7590]" {...jsAnimated}>{t.when}</motion.p>
       {t.gpa && (
-        <motion.p {...line(3)} className="text-lg">
+        <motion.p {...line(3)} className="text-lg" {...jsAnimated}>
           GPA <span className="relative inline-block px-1 text-xl">{t.gpa}<Circle /></span> / 4.0
         </motion.p>
       )}
-      <motion.p {...line(4)} className="mt-[32px] text-sm uppercase tracking-[0.2em] text-[#8a93a8]">
+      <motion.p {...line(4)} className="mt-[32px] text-sm uppercase tracking-[0.2em] text-[#8a93a8]" {...jsAnimated}>
         notes
       </motion.p>
       {t.notes.map((n, k) => (
-        <motion.p key={n} {...line(5 + k)} className="flex items-center gap-3">
+        <motion.p key={n} {...jsAnimated} {...line(5 + k)} className="flex items-center gap-3">
           <span className="text-[#C8433A]">✓</span>
           {n}
         </motion.p>
@@ -98,6 +99,7 @@ function Page({ t }: { t: (typeof TABS)[number] }) {
 
       {/* gold star sticker, slapped on at an angle */}
       <motion.div
+        {...jsAnimated}
         className="absolute right-8 top-10 flex h-24 w-24 items-center justify-center text-center text-[12px] font-bold leading-tight text-[#6b4a12]"
         initial={{ scale: 1.6, opacity: 0, rotate: -40 }}
         animate={{ scale: 1, opacity: 1, rotate: 12, transition: { delay: 0.95, duration: 0.35, ease: EASE_OUT } }}
@@ -116,6 +118,7 @@ export default function EducationOverlay({ open, onClose }: { open: boolean; onC
   return (
     <Overlay open={open} onClose={onClose}>
       <motion.div
+        {...jsAnimated}
         className="relative flex"
         initial={{ y: 70, opacity: 0, rotate: 2 }}
         animate={{ y: 0, opacity: 1, rotate: -1, transition: enter(0, 0.55) }}
@@ -143,6 +146,7 @@ export default function EducationOverlay({ open, onClose }: { open: boolean; onC
           {TABS.map((t, k) => (
             <motion.button
               key={t.id}
+              {...jsAnimated}
               onClick={() => setTab(k)}
               className="rounded-r-md px-3 py-3 text-sm font-semibold text-[#3b3129] shadow"
               style={{ background: t.color }}

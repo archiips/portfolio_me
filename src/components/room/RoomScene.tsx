@@ -91,6 +91,78 @@ function CameraIntro({
   return null;
 }
 
+// While an overlay is open the room is frozen and shown blurred and dimmed.
+// That used to be a CSS filter on the WebGL canvas, which Safari composites
+// badly: the overlay flickered out for single frames while the blur animated.
+// Instead the last frame is copied into a small 2D canvas, blurred there once
+// (Safari ignores ctx.filter, so by hand) and faded in over the room; only
+// opacity animates.
+const FREEZE_SCALE = 1 / 6;
+const FREEZE_BLUR = 1; // box radius at that scale; 3 passes ≈ the old blur(7px)
+const FREEZE_DIM = 0.25; // same as brightness(0.75)
+
+// Three box blurs in each direction approximate a gaussian.
+function blurPixels(img: ImageData, r: number) {
+  const { width: w, height: h, data } = img;
+  const tmp = new Uint8ClampedArray(data.length);
+  const pass = (src: Uint8ClampedArray, dst: Uint8ClampedArray, horizontal: boolean) => {
+    const n = horizontal ? w : h;
+    const lines = horizontal ? h : w;
+    const step = horizontal ? 4 : w * 4;
+    for (let line = 0; line < lines; line++) {
+      const base = horizontal ? line * w * 4 : line * 4;
+      for (let c = 0; c < 3; c++) {
+        let sum = 0;
+        for (let k = -r; k <= r; k++) sum += src[base + Math.min(n - 1, Math.max(0, k)) * step + c];
+        for (let i = 0; i < n; i++) {
+          dst[base + i * step + c] = sum / (2 * r + 1);
+          sum += src[base + Math.min(n - 1, i + r + 1) * step + c] - src[base + Math.max(0, i - r) * step + c];
+        }
+      }
+    }
+  };
+  for (let k = 0; k < 3; k++) {
+    pass(data, tmp, true);
+    pass(tmp, data, false);
+  }
+}
+
+function Freeze({ paused, target }: { paused: boolean; target: React.RefObject<HTMLCanvasElement | null> }) {
+  const { gl, scene, camera } = useThree();
+  useEffect(() => {
+    const out = target.current;
+    if (!out) return;
+    if (!paused) {
+      out.style.opacity = "0";
+      return;
+    }
+    // The drawing buffer is only readable right after a render.
+    gl.render(scene, camera);
+    let src: HTMLCanvasElement = gl.domElement;
+    const w = Math.max(1, Math.round(src.width * FREEZE_SCALE));
+    const h = Math.max(1, Math.round(src.height * FREEZE_SCALE));
+    // Halve in steps so the small copy averages every pixel.
+    while (src.width / 2 > w) {
+      const half = document.createElement("canvas");
+      half.width = Math.round(src.width / 2);
+      half.height = Math.round(src.height / 2);
+      half.getContext("2d")!.drawImage(src, 0, 0, half.width, half.height);
+      src = half;
+    }
+    out.width = w;
+    out.height = h;
+    const ctx = out.getContext("2d", { willReadFrequently: true })!;
+    ctx.drawImage(src, 0, 0, w, h);
+    const img = ctx.getImageData(0, 0, w, h);
+    blurPixels(img, FREEZE_BLUR);
+    ctx.putImageData(img, 0, 0);
+    ctx.fillStyle = `rgba(0,0,0,${FREEZE_DIM})`;
+    ctx.fillRect(0, 0, w, h);
+    out.style.opacity = "1";
+  }, [paused, gl, scene, camera, target]);
+  return null;
+}
+
 interface RoomSceneProps {
   onSelect: (s: Section) => void;
   /** False while the boot/hello screens cover the room. */
@@ -108,6 +180,7 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
   const markKeysUsed = useCallback(() => setKeysUsed(true), []);
   const [shiftLock, setShiftLock] = useState(false);
   const [lookArmed, setLookArmed] = useState(false);
+  const frozen = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const check = () => setMobile(window.innerWidth / window.innerHeight < 0.9);
@@ -135,8 +208,6 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
         }}
         style={{
           cursor: hovered ? "pointer" : "default",
-          filter: paused ? "blur(7px) brightness(0.75)" : "none",
-          transition: "filter 350ms ease-out",
         }}
       >
         {/* Nearly everything is lit by its baked textures. These only shape
@@ -165,6 +236,8 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
           <KeyboardControls controls={controls} intro={intro} enabled={started && !paused} onUsed={markKeysUsed} onShiftLock={setShiftLock} onArmed={setLookArmed} />
         </Suspense>
 
+        <Freeze paused={paused} target={frozen} />
+
         <OrbitControls
           ref={controls}
           enablePan={false}
@@ -178,6 +251,14 @@ export default function RoomScene({ onSelect, paused = false, started = true }: 
           maxPolarAngle={Math.PI / 2.15}
         />
       </Canvas>
+
+      {/* the frozen, blurred room behind an open overlay (see Freeze) */}
+      <canvas
+        ref={frozen}
+        aria-hidden
+        className="pointer-events-none absolute inset-0 h-full w-full"
+        style={{ opacity: 0, transition: "opacity 350ms ease-out" }}
+      />
 
       {/* The reference cools its warm interior with a blue overlay in
           `overlay` blend mode. Kept light here so it doesn't darken the room. */}

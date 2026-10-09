@@ -3,6 +3,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { sniglet } from "../fonts";
+import { jsAnimated } from "./motion";
 
 interface OverlayProps {
   open: boolean;
@@ -33,6 +34,7 @@ export default function Overlay({
     <AnimatePresence>
       {open && (
         <motion.div
+          {...jsAnimated}
           className={`room-ui fixed inset-0 z-40 flex items-center justify-center overflow-y-auto px-4 py-16 ${sniglet.variable}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -46,6 +48,7 @@ export default function Overlay({
               the room itself while an overlay is up. */}
           <div className="fixed inset-0 bg-black/35" />
           <motion.p
+            {...jsAnimated}
             className="pointer-events-none fixed left-1/2 top-6 z-10 -translate-x-1/2 whitespace-nowrap text-lg text-[#ECE3D3] [font-family:var(--font-sniglet)]"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 0.9, y: 0, transition: { delay: 0.5 } }}

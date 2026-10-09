@@ -5,7 +5,7 @@ import { FileText, Github, Linkedin, Mail } from "lucide-react";
 import { aboutMe } from "@/lib/projects";
 import { assetPath } from "@/lib/utils";
 import Overlay from "./Overlay";
-import { EASE_OUT, enter, leave } from "./motion";
+import { EASE_OUT, enter, leave, jsAnimated } from "./motion";
 
 // Contact as a letter: the envelope slides in, the flap opens and the letter
 // rises out with the ways to reach Archit. The stamp is the room's panda.
@@ -39,6 +39,7 @@ export default function ContactOverlay({ open, onClose }: { open: boolean; onClo
   return (
     <Overlay open={open} onClose={onClose}>
       <motion.div
+        {...jsAnimated}
         className="relative pt-[200px]"
         style={{ width: W }}
         initial={{ x: -80, y: 30, opacity: 0, rotate: -8 }}
@@ -49,6 +50,7 @@ export default function ContactOverlay({ open, onClose }: { open: boolean; onClo
         <div className="relative h-[clamp(210px,30vw,280px)] rounded-md bg-[#C9A982] shadow-[0_25px_60px_rgba(0,0,0,0.55)]">
           {/* the letter rises out once the flap is open */}
           <motion.div
+            {...jsAnimated}
             className="absolute inset-x-[6%] bottom-4 z-10 rounded-sm bg-[#FBF7EE] p-6 text-[#3b3129] shadow-md"
             initial={{ y: 0 }}
             animate={{ y: "-62%", transition: { delay: 0.75, duration: 0.6, ease: EASE_OUT } }}
@@ -61,6 +63,7 @@ export default function ContactOverlay({ open, onClose }: { open: boolean; onClo
               {LINKS.map(({ label, value, href, Icon }, k) => (
                 <motion.a
                   key={label}
+                  {...jsAnimated}
                   href={href}
                   target={href.startsWith("mailto:") ? undefined : "_blank"}
                   rel="noreferrer"
@@ -88,6 +91,7 @@ export default function ContactOverlay({ open, onClose }: { open: boolean; onClo
 
           {/* the flap, hinged at the top edge, swings open */}
           <motion.div
+            {...jsAnimated}
             className="absolute inset-x-0 top-0 z-30 h-[58%] origin-top bg-[#BF9C73]"
             style={{ clipPath: "polygon(0 0, 100% 0, 50% 100%)", transformPerspective: 900 }}
             initial={{ rotateX: 0 }}

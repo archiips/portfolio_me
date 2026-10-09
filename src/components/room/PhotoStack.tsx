@@ -12,6 +12,7 @@ import {
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { assetPath } from "@/lib/utils";
 import Overlay from "./overlays/Overlay";
+import { jsAnimated } from "./overlays/motion";
 
 // Archit's photos, the same ones pinned on the garland in the room
 // (public/photos, 800px). Captions can be added here.
@@ -98,6 +99,7 @@ function Card({ photo, depth, dir, intro, onSwipe }: CardProps) {
 
   return (
     <motion.div
+      {...jsAnimated}
       className="absolute inset-0"
       style={{ zIndex: VISIBLE - depth, x }}
       custom={dir}
@@ -131,6 +133,7 @@ function Card({ photo, depth, dir, intro, onSwipe }: CardProps) {
       {/* The hand-held layer: drags on its own value with no constraints, so
           letting go never fights the fly-off animation. */}
       <motion.div
+        {...jsAnimated}
         className={`h-full w-full ${isTop ? "cursor-grab active:cursor-grabbing" : ""}`}
         style={{ x: dragX, rotate: dragRotate }}
         drag={isTop ? "x" : false}
